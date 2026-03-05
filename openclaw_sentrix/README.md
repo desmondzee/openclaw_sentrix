@@ -1,4 +1,13 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sentrix — Landing
+
+Landing page for Sentrix (agentic police for AI), pixel-art style inspired by [pixel-agents](https://github.com/pablodelucca/pixel-agents), built with Next.js, pixel-art style, and a Supabase-backed waitlist.
+
+## Waitlist (Supabase)
+
+1. In your [Supabase](https://supabase.com) project, run the SQL in `supabase-waitlist.sql` (SQL Editor) to create the `waitlist` table and RLS policy.
+2. Copy `.env.local.example` to `.env.local` and set:
+   - `NEXT_PUBLIC_SUPABASE_URL` — project URL
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — anon/public key from **Settings → API**
 
 ## Getting Started
 
