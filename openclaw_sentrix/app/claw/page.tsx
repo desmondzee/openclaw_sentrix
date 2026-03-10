@@ -6,7 +6,7 @@ const STORAGE_KEY = "claw_bridge_url";
 const DEFAULT_BRIDGE_URL =
   typeof process !== "undefined" && process.env.NEXT_PUBLIC_CLAW_WS_URL
     ? process.env.NEXT_PUBLIC_CLAW_WS_URL
-    : "wss://localhost:8765";
+    : "wss://localhost:8766";
 
 type MessageRole = "user" | "assistant";
 interface ChatMessage {
@@ -15,27 +15,13 @@ interface ChatMessage {
   text: string;
 }
 
-/** Bridge runs WSS on --port and a separate HTTPS /ping server on port - 1 (for cert trust). */
-function bridgeUrlToPingUrl(wssUrl: string): string {
+/** Trust server runs on port - 1 (any GET -> 200 OK). Open in browser to accept the cert. */
+function bridgeUrlToTrustUrl(wssUrl: string): string {
   try {
     const u = new URL(wssUrl);
     u.protocol = "https:";
-    const portNum = parseInt(u.port || "8765", 10);
+    const portNum = parseInt(u.port || "8766", 10);
     u.port = String(portNum - 1);
-    u.pathname = "/ping";
-    u.search = "";
-    u.hash = "";
-    return u.toString();
-  } catch {
-    return "https://localhost:8764/ping";
-  }
-}
-
-/** Same host:port as WSS but https - open this to trust the cert for the WebSocket port. */
-function bridgeUrlToWssTrustUrl(wssUrl: string): string {
-  try {
-    const u = new URL(wssUrl);
-    u.protocol = "https:";
     u.pathname = "/";
     u.search = "";
     u.hash = "";
@@ -140,8 +126,7 @@ export default function ClawPage() {
     (connectionStatus === "error" || connectionStatus === "disconnected") &&
     isMounted &&
     bridgeUrl.trim().length > 0;
-  const pingUrl = bridgeUrlToPingUrl(bridgeUrl.trim() || DEFAULT_BRIDGE_URL);
-  const wssTrustUrl = bridgeUrlToWssTrustUrl(bridgeUrl.trim() || DEFAULT_BRIDGE_URL);
+  const trustUrl = bridgeUrlToTrustUrl(bridgeUrl.trim() || DEFAULT_BRIDGE_URL);
 
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col bg-[var(--background)]">
@@ -154,7 +139,7 @@ export default function ClawPage() {
           value={bridgeUrl}
           onChange={(e) => setBridgeUrl(e.target.value)}
           onBlur={() => saveBridgeUrl(bridgeUrl)}
-          placeholder="wss://localhost:8765"
+          placeholder="wss://localhost:8766"
           className="w-full rounded border border-[var(--pixel-border)] bg-[var(--background)] px-3 py-2 font-mono text-sm text-[var(--foreground)] placeholder:text-gray-500 focus:border-[var(--accent)] focus:outline-none"
         />
         <p className="mt-1 font-mono text-xs text-gray-500">
@@ -170,32 +155,17 @@ export default function ClawPage() {
       {showErrorBanner && (
         <div className="border-b border-amber-500/50 bg-amber-500/10 px-4 py-3">
           <p className="font-mono text-sm text-amber-200">
-            Cannot connect to Local Claw. If you are running Sentrix locally:
+            Cannot connect to Local Claw. If you are running Sentrix locally,{" "}
+            <a
+              href={trustUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-amber-100"
+            >
+              open this link
+            </a>{" "}
+            and accept the certificate, then try again.
           </p>
-          <ul className="mt-2 list-inside list-disc space-y-1 font-mono text-sm text-amber-200">
-            <li>
-              <a
-                href={pingUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-amber-100"
-              >
-                Trust the ping server
-              </a>{" "}
-              (open and accept the certificate).
-            </li>
-            <li>
-              <a
-                href={wssTrustUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-amber-100"
-              >
-                Trust the WSS port
-              </a>{" "}
-              (you may see an error page; accept the certificate anyway so the app can connect).
-            </li>
-          </ul>
         </div>
       )}
 

@@ -206,7 +206,7 @@ def chat(log_dir: str, message: str | None) -> None:
 
 @main.command()
 @click.option("--log-dir", "log_dir", default="./agent_logs", type=click.Path(), help="Log directory (where .sentrix_sandbox_id is stored).")
-@click.option("--port", default=8765, type=int, help="Port for WSS bridge.")
+@click.option("--port", default=8766, type=int, help="Port for WSS bridge (trust server runs on port - 1).")
 @click.option("--host", default="0.0.0.0", help="Host to bind (0.0.0.0 for all interfaces).")
 @click.option("--cert", "cert_path", default=None, type=click.Path(), help="Path to TLS certificate (optional).")
 @click.option("--key", "key_path", default=None, type=click.Path(), help="Path to TLS key (optional).")

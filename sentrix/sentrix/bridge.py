@@ -222,37 +222,40 @@ async def _handler(
 def run_bridge(
     log_dir: Path,
     host: str = "0.0.0.0",
-    port: int = 8765,
+    port: int = 8766,
     cert_path: Path | None = None,
     key_path: Path | None = None,
 ) -> None:
-    """Run the WSS bridge server (blocking). WSS listens on --port; a separate
-    HTTPS server listens on port - 1 for GET /ping only (for cert trust).
+    """Run the WSS bridge (blocking). WSS is on --port (default 8766). A separate
+    HTTPS server on port - 1 (default 8765) serves GET / and GET /ping with 200 OK
+    so you can open it in a browser to trust the cert without hitting the WebSocket
+    server (which would reject plain HTTP with 426 and noisy tracebacks).
     """
     logging.basicConfig(level=logging.INFO, format="[bridge] %(message)s")
     allowed = _load_origins()
     cert_cache = Path.home() / ".sentrix" / "bridge.pem"
     ssl_ctx = _make_ssl_context(cert_path, key_path, cert_cache)
 
-    ping_port = port - 1
-    ping_host = "127.0.0.1" if host == "0.0.0.0" else host
-    display_host = ping_host or "localhost"
+    trust_port = port - 1  # HTTPS-only: any GET -> 200 OK for cert trust
+    display_host = "127.0.0.1" if host == "0.0.0.0" else host or "localhost"
 
     async def handler(ws: websockets.WebSocketServerProtocol) -> None:
         await _handler(ws, log_dir, allowed)
 
     async def _serve() -> None:
         loop = asyncio.get_running_loop()
-        ping_server = await loop.create_server(
-            lambda: _PingProtocol(PING_BODY),
+        trust_server = await loop.create_server(
+            lambda: _TrustProtocol(PING_BODY),
             host,
-            ping_port,
+            trust_port,
             ssl=ssl_ctx,
         )
         logger.info(
-            "Ping server (cert trust): https://%s:%s/ping",
+            "Trust server (open in browser to accept cert): https://%s:%s or https://%s:%s/ping",
             display_host,
-            ping_port,
+            trust_port,
+            display_host,
+            trust_port,
         )
         async with websockets.serve(
             handler,
@@ -263,19 +266,17 @@ def run_bridge(
             ping_timeout=20,
         ) as wss_server:
             logger.info(
-                "Bridge WSS: wss://%s:%s (to trust cert, open https://%s:%s/ping)",
+                "Bridge WSS: wss://%s:%s",
                 display_host,
                 port,
-                display_host,
-                ping_port,
             )
             await asyncio.Future()
 
     asyncio.run(_serve())
 
 
-class _PingProtocol(asyncio.Protocol):
-    """Minimal HTTPS handler: only GET /ping -> 200 OK."""
+class _TrustProtocol(asyncio.Protocol):
+    """HTTPS handler: any GET (/, /ping, etc.) -> 200 OK. Used only for cert trust."""
 
     def __init__(self, body: bytes) -> None:
         self.body = body
@@ -286,7 +287,7 @@ class _PingProtocol(asyncio.Protocol):
     def data_received(self, data: bytes) -> None:
         try:
             first_line = data.split(b"\r\n", 1)[0].decode("utf-8", errors="replace")
-            if first_line.startswith("GET /ping") or first_line.startswith("GET /ping?"):
+            if first_line.startswith("GET "):
                 response = (
                     b"HTTP/1.1 200 OK\r\n"
                     b"Content-Type: text/plain; charset=utf-8\r\n"

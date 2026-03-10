@@ -93,24 +93,24 @@ Without `--message`, runs an interactive loop: type a message and press Enter to
 The [openclaw-sentrix](https://openclaw-sentrix.vercel.app) Next.js app has a **Your Claw** tab where you can chat with OpenClaw in the browser. The app is served over HTTPS from Vercel, so it must connect to your local sandbox via **wss://** (secure WebSocket). Run the **bridge** on your machine to accept browser connections and proxy them to the OpenClaw Gateway inside the sandbox.
 
 1. In one terminal, start the sandbox: `sentrix run`
-2. In another terminal, start the bridge: `sentrix bridge` (default: `wss://localhost:8765`)
-3. Open the app, go to **Your Claw**, and set **Bridge URL** to `wss://localhost:8765` (or your tunnel URL; the app stores it in localStorage)
+2. In another terminal, start the bridge: `sentrix bridge` (WSS on port 8766, trust server on 8765)
+3. Open the app, go to **Your Claw**, and set **Bridge URL** to `wss://localhost:8766` (or your tunnel URL; the app stores it in localStorage)
 
-**First-time cert trust (self-signed):** The bridge uses a self-signed TLS certificate and runs two servers: WSS on `--port` (default 8765) and a separate HTTPS server on **port − 1** (default 8764) for **GET /ping**. Browsers treat certificate trust per-origin (host + port). So you may need to accept the cert **twice**: (1) open the app’s “Trust the ping server” link (e.g. `https://localhost:8764/ping`), accept the cert; (2) open the app’s “Trust the WSS port” link (e.g. `https://localhost:8765`), accept the cert even if you see an error page. Then reconnect in the app. Safari and iOS enforce a 398-day max validity; the bridge generates a 365-day cert. Chrome requires the host in the cert’s Subject Alternative Name (SAN); the bridge includes `localhost` in SAN.
+**First-time cert trust (self-signed):** The bridge runs **WSS on `--port`** (default **8766**) and a separate **HTTPS server on port − 1** (default **8765**) that answers any GET with 200 OK. Open the app’s “open this link” URL (e.g. `https://localhost:8765`) in a new tab and accept the certificate once; the same cert is used for WSS, so the app can then connect to `wss://localhost:8766`. Safari and iOS enforce a 398-day max validity; the bridge generates a 365-day cert. Chrome requires the host in the cert’s Subject Alternative Name (SAN); the bridge includes `localhost` in SAN.
 
 **Tunnel (optional):** To use the app from another device (e.g. phone), run a tunnel (e.g. ngrok, cloudflared) that exposes the bridge with a public wss URL and paste that URL into the app's Bridge URL field.
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--log-dir PATH` | `./agent_logs` | Log directory (same as `sentrix run`; must contain `.sentrix_sandbox_id`) |
-| `--port N` | `8765` | Port for WSS bridge; GET /ping for cert trust is served on port N−1 (e.g. 8764) |
+| `--port N` | `8766` | Port for WSS bridge; HTTPS trust server (open in browser to accept cert) is on port N−1 (e.g. 8765) |
 | `--host HOST` | `0.0.0.0` | Host to bind |
 | `--cert PATH` | | Path to TLS certificate (optional; else auto-generated) |
 | `--key PATH` | | Path to TLS key (optional) |
 
 **Origin allowlist:** The bridge accepts WebSocket connections only from `https://openclaw-sentrix.vercel.app`, `http://localhost:3000`, and `https://localhost:3000`. Browsers send the `Origin` header without a trailing slash; the bridge compares against this allowlist strictly (no normalization). Override with env `SENTRIX_BRIDGE_ORIGINS` (comma-separated).
 
-**Cert trust (/ping):** The bridge runs a separate HTTPS server on **port − 1** (e.g. 8764 when WSS is on 8765) that responds only to **GET /ping** with 200 OK. Use the in-app link (e.g. `https://localhost:8764/ping`) to accept the certificate once, then reconnect.
+**Cert trust:** The bridge runs an HTTPS server on **port − 1** (e.g. 8765 when WSS is on 8766) that responds to any GET with 200 OK. Use the in-app link (e.g. `https://localhost:8765`) to accept the certificate once, then reconnect.
 
 ### Non-interactive mode
 
