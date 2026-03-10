@@ -8,6 +8,9 @@ const DEFAULT_BRIDGE_URL =
     ? process.env.NEXT_PUBLIC_CLAW_WS_URL
     : "wss://localhost:8766";
 
+const INITIAL_BACKOFF_MS = 1000;
+const MAX_BACKOFF_MS = 30000;
+
 type MessageRole = "user" | "assistant";
 interface ChatMessage {
   id: string;
@@ -52,10 +55,14 @@ export default function ClawPage() {
   const [connectionStatus, setConnectionStatus] = useState<
     "idle" | "connecting" | "connected" | "disconnected" | "error"
   >("idle");
+  const [lastClose, setLastClose] = useState<{ code: number; reason: string } | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const wsRef = useRef<WebSocket | null>(null);
   const pendingIdRef = useRef<string | null>(null);
+  const backoffMsRef = useRef(INITIAL_BACKOFF_MS);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isUnmountedRef = useRef(false);
 
   // Load bridge URL from localStorage only on client after mount (avoid hydration mismatch)
   useEffect(() => {
@@ -77,45 +84,85 @@ export default function ClawPage() {
     }
   }, []);
 
-  // Connect WebSocket only when mounted and we have a URL; re-run when reconnectKey changes
+  // Connect WebSocket when mounted and we have a URL; re-run when reconnectKey changes.
+  // Single active connection (guard via wsRef). Auto-reconnect with exponential backoff on unexpected close.
   useEffect(() => {
     if (!isMounted || !bridgeUrl.trim()) return;
 
+    isUnmountedRef.current = false;
     const url = bridgeUrl.trim();
-    setConnectionStatus("connecting");
-    const ws = new WebSocket(url);
 
-    ws.onopen = () => setConnectionStatus("connected");
-    ws.onclose = () => {
-      setConnectionStatus(wsRef.current === ws ? "disconnected" : "idle");
-      wsRef.current = null;
-    };
-    ws.onerror = () => setConnectionStatus("error");
+    const connect = () => {
+      if (isUnmountedRef.current || wsRef.current != null) return;
+      setConnectionStatus("connecting");
+      const ws = new WebSocket(url);
 
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data as string) as {
-          type?: string;
-          id?: string;
-          payload?: { text?: string };
-        };
-        if (msg.type === "response" && msg.payload?.text != null) {
-          const id = msg.id ?? `r-${Date.now()}`;
-          setMessages((prev) => [
-            ...prev,
-            { id, role: "assistant", text: msg.payload!.text! },
-          ]);
-          if (pendingIdRef.current === id) pendingIdRef.current = null;
+      ws.onopen = () => {
+        if (isUnmountedRef.current) {
+          ws.close();
+          return;
         }
-      } catch {
-        // ignore parse errors
-      }
+        backoffMsRef.current = INITIAL_BACKOFF_MS; // reset backoff on successful connect
+        setLastClose(null);
+        setConnectionStatus("connected");
+      };
+
+      ws.onclose = (event) => {
+        if (wsRef.current === ws) {
+          wsRef.current = null;
+          setLastClose({ code: event.code, reason: event.reason || "" });
+          setConnectionStatus("disconnected");
+          // Auto-reconnect with exponential backoff (only if still mounted and no other WS)
+          if (!isUnmountedRef.current && event.code !== 1000) {
+            const delay = backoffMsRef.current;
+            backoffMsRef.current = Math.min(backoffMsRef.current * 2, MAX_BACKOFF_MS);
+            reconnectTimeoutRef.current = setTimeout(() => {
+              reconnectTimeoutRef.current = null;
+              setReconnectKey((k) => k + 1);
+            }, delay);
+          }
+        }
+      };
+
+      ws.onerror = () => {
+        if (wsRef.current === ws) setConnectionStatus("error");
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data as string) as {
+            type?: string;
+            id?: string;
+            payload?: { text?: string };
+          };
+          if (msg.type === "response" && msg.payload?.text != null) {
+            const id = msg.id ?? `r-${Date.now()}`;
+            setMessages((prev) => [
+              ...prev,
+              { id, role: "assistant", text: msg.payload!.text! },
+            ]);
+            if (pendingIdRef.current === id) pendingIdRef.current = null;
+          }
+        } catch {
+          // ignore parse errors
+        }
+      };
+
+      wsRef.current = ws;
     };
 
-    wsRef.current = ws;
+    connect();
+
     return () => {
-      ws.close();
-      wsRef.current = null;
+      isUnmountedRef.current = true;
+      if (reconnectTimeoutRef.current != null) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      if (wsRef.current) {
+        wsRef.current.close(1000, "nav");
+        wsRef.current = null;
+      }
     };
   }, [isMounted, bridgeUrl, reconnectKey]);
 
@@ -158,7 +205,7 @@ export default function ClawPage() {
           placeholder="wss://localhost:8766"
           className="w-full rounded border border-[var(--pixel-border)] bg-[var(--background)] px-3 py-2 font-mono text-sm text-[var(--foreground)] placeholder:text-gray-500 focus:border-[var(--accent)] focus:outline-none"
         />
-        <p className="mt-1 flex items-center gap-2 font-mono text-xs text-gray-500">
+        <p className="mt-1 flex flex-wrap items-center gap-2 font-mono text-xs text-gray-500">
           Status:{" "}
           {connectionStatus === "connecting" && "Connecting…"}
           {connectionStatus === "connected" && "Connected"}
@@ -168,11 +215,20 @@ export default function ClawPage() {
           {(connectionStatus === "error" || connectionStatus === "disconnected") && (
             <button
               type="button"
-              onClick={() => setReconnectKey((k) => k + 1)}
+              onClick={() => {
+                backoffMsRef.current = INITIAL_BACKOFF_MS;
+                setReconnectKey((k) => k + 1);
+              }}
               className="rounded border border-amber-500/50 bg-amber-500/20 px-2 py-1 font-mono text-xs text-amber-200 hover:bg-amber-500/30"
             >
               Reconnect
             </button>
+          )}
+          {lastClose != null && (connectionStatus === "disconnected" || connectionStatus === "error") && (
+            <span className="text-gray-400" title="Last close reason">
+              (close {lastClose.code}
+              {lastClose.reason ? `: ${lastClose.reason}` : ""})
+            </span>
           )}
         </p>
       </div>

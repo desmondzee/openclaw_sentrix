@@ -26,6 +26,9 @@ class _SuppressInvalidUpgradeTraceback(logging.Filter):
         # Suppress "connection rejected (426 Upgrade Required)" from websockets when opening WSS port in browser
         if "connection rejected" in msg and "426" in msg:
             return False
+        # Suppress "connection rejected (200 OK)" — we return 200 for plain GET (cert trust) on WSS port
+        if "connection rejected" in msg and "200" in msg:
+            return False
         if "opening handshake failed" not in msg:
             return True
         if record.exc_info and record.exc_info[1] is not None:
