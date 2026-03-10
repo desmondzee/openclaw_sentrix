@@ -94,6 +94,9 @@ export default function ClawPage() {
 
     const connect = () => {
       if (isUnmountedRef.current || wsRef.current != null) return;
+      if (typeof window !== "undefined") {
+        console.log("[Claw] Connecting to", url, "reconnectKey:", reconnectKey);
+      }
       setConnectionStatus("connecting");
       const ws = new WebSocket(url);
 
@@ -108,6 +111,9 @@ export default function ClawPage() {
       };
 
       ws.onclose = (event) => {
+        if (typeof window !== "undefined") {
+          console.log("[Claw] onclose code=%s reason=%s", event.code, event.reason || "(none)");
+        }
         if (wsRef.current === ws) {
           wsRef.current = null;
           setLastClose({ code: event.code, reason: event.reason || "" });
@@ -216,6 +222,9 @@ export default function ClawPage() {
             <button
               type="button"
               onClick={() => {
+                if (typeof window !== "undefined") {
+                  console.log("[Claw] Reconnect clicked, bridgeUrl:", bridgeUrl.trim());
+                }
                 backoffMsRef.current = INITIAL_BACKOFF_MS;
                 setReconnectKey((k) => k + 1);
               }}

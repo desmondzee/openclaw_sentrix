@@ -114,6 +114,8 @@ You do **not** need to run `sentrix chat` for the web UI; the bridge proxies dir
 
 **Cert trust:** The bridge runs an HTTPS server on **port − 1** (e.g. 8765 when WSS is on 8766) that responds to any GET with 200 OK. Use the in-app link (e.g. `https://localhost:8765`) to accept the certificate once, then reconnect.
 
+**Debugging:** If the app stays disconnected after Reconnect, check the bridge terminal for `Gateway WebSocket URL:` and `Gateway connection failed or closed:`. Run `sentrix bridge-debug` (with `sentrix run` in another terminal) to print the gateway URL and test the WebSocket connection; any failure is shown there. In the browser console (F12 → Console) you’ll see `[Claw]` logs for Reconnect, Connecting, and onclose (code and reason from the bridge).
+
 ### Non-interactive mode
 
 Skip the wizard by passing API keys directly:

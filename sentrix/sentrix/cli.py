@@ -232,6 +232,36 @@ def bridge(
 
 
 @main.command()
+@click.option("--log-dir", "log_dir", default="./agent_logs", type=click.Path(), help="Log directory (where .sentrix_sandbox_id is stored).")
+def bridge_debug(log_dir: str) -> None:
+    """Print gateway WebSocket URL and test connection (run while 'sentrix run' is up)."""
+    import asyncio
+    from sentrix.config import GATEWAY_PORT
+    from sentrix.sandbox import connect_sandbox, read_sandbox_id
+
+    path = Path(log_dir)
+    sandbox_id = read_sandbox_id(path)
+    if not sandbox_id:
+        console.print("[red]No .sentrix_sandbox_id in %s. Start 'sentrix run' first.[/red]", path)
+        raise SystemExit(1)
+
+    async def _run() -> None:
+        sandbox = await connect_sandbox(sandbox_id)
+        endpoint_info = await sandbox.get_endpoint(GATEWAY_PORT)
+        raw = getattr(endpoint_info, "endpoint", str(endpoint_info))
+        gateway_ws_url = f"ws://{raw}" if not raw.startswith("ws") else raw
+        console.print("[dim]Gateway WebSocket URL:[/dim] [bold]%s[/bold]", gateway_ws_url)
+        try:
+            import websockets
+            async with websockets.connect(gateway_ws_url, close_timeout=5) as ws:
+                console.print("[green]Gateway WebSocket connected successfully.[/green]")
+        except Exception as e:
+            console.print("[red]Gateway WebSocket connection failed: %s[/red]", e)
+
+    asyncio.run(_run())
+
+
+@main.command()
 @click.option("--image", default=SANDBOX_IMAGE, help="Image tag to build.")
 def build(image: str) -> None:
     """Build the sentrix sandbox Docker image."""

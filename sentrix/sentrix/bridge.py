@@ -196,16 +196,19 @@ async def _proxy_connection(
 
     try:
         endpoint_info = await sandbox.get_endpoint(GATEWAY_PORT)
-        # endpoint_info.endpoint is e.g. "host:port/proxy/18789"
+        # endpoint_info.endpoint is e.g. "host:port/sandboxes/ID/proxy/18789"
         raw = getattr(endpoint_info, "endpoint", str(endpoint_info))
         gateway_ws_url = f"ws://{raw}" if not raw.startswith("ws") else raw
+        logger.info("Gateway WebSocket URL: %s", gateway_ws_url)
     except Exception as e:
         logger.exception("Failed to get gateway endpoint")
         await browser_ws.close(1011, f"Gateway endpoint failed: {e}")
         return
 
     try:
+        logger.info("Connecting to gateway...")
         async with websockets.connect(gateway_ws_url, close_timeout=2) as gateway_ws:
+            logger.info("Gateway WebSocket connected, proxying")
             async def from_browser_to_gateway() -> None:
                 try:
                     async for message in browser_ws:
@@ -229,9 +232,9 @@ async def _proxy_connection(
                 from_gateway_to_browser(),
             )
     except Exception as e:
-        logger.debug("Gateway connection closed: %s", e)
+        logger.warning("Gateway connection failed or closed: %s", e, exc_info=False)
         try:
-            await browser_ws.close()
+            await browser_ws.close(1011, f"Gateway error: {e!s}"[:123])
         except Exception:
             pass
 
