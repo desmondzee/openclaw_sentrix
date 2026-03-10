@@ -7,10 +7,10 @@ from pathlib import Path
 from sentrix.police.graph import build_police_graph
 
 
-async def run_investigation(patrol_flag: dict, log_dir: Path) -> dict | None:
+async def run_investigation(patrol_flag: dict, log_dir: Path) -> tuple[dict | None, str | None]:
     """
     Run the police graph for one patrol flag: setup -> investigator -> end.
-    Returns the final case_file dict from state, or None on error.
+    Returns (case_file_dict, investigation_id) on success, or (None, None) on error.
     """
     graph = build_police_graph()
     initial = {
@@ -24,4 +24,6 @@ async def run_investigation(patrol_flag: dict, log_dir: Path) -> dict | None:
         "error": None,
     }
     final = await graph.ainvoke(initial)
-    return final.get("case_file")
+    if final.get("status") != "concluded":
+        return None, None
+    return final.get("case_file"), final.get("investigation_id")

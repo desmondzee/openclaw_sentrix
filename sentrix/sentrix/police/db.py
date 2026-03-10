@@ -20,9 +20,37 @@ def open_police_db(db_path: Path) -> sqlite3.Connection:
             concluded_at TEXT NOT NULL,
             case_file_json TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS investigated_flags (
+            flag_id TEXT PRIMARY KEY,
+            investigated_at TEXT NOT NULL,
+            investigation_id TEXT NOT NULL
+        );
     """)
     conn.commit()
     return conn
+
+
+def is_investigated(conn: sqlite3.Connection, flag_id: str) -> bool:
+    """Return True if this flag_id already has a report (marked complete)."""
+    cur = conn.execute("SELECT 1 FROM investigated_flags WHERE flag_id = ?", (flag_id,))
+    return cur.fetchone() is not None
+
+
+def mark_investigated(
+    conn: sqlite3.Connection,
+    flag_id: str,
+    investigation_id: str,
+    investigated_at: str | None = None,
+) -> None:
+    """Mark a flag as investigated (report written)."""
+    from datetime import datetime, timezone
+    at = investigated_at or (datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"))
+    conn.execute(
+        """INSERT OR REPLACE INTO investigated_flags (flag_id, investigated_at, investigation_id)
+           VALUES (?, ?, ?)""",
+        (flag_id, at, investigation_id),
+    )
+    conn.commit()
 
 
 def insert_case_file(conn: sqlite3.Connection, row: dict) -> None:

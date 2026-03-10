@@ -31,6 +31,11 @@ RULES:
 - confidence must be between 0.0 and 1.0.
 - verdict_summary must be 2–3 sentences only.
 
+OPTIONAL — Request more context: If you need more log files to complete the report, you may include "request_more_context" in your JSON:
+- "request_more_context": {"direction": "back", "n": <integer>} — request up to n log files earlier (before the current set).
+- "request_more_context": {"direction": "forward", "n": <integer>} — request up to n log files later (after the current set).
+- Omit "request_more_context" (or set to null) when you have enough context to write the report.
+
 Return ONLY valid JSON — no prose before or after:
 {
   "crime_classification": "<one of the taxonomy values above>",
@@ -38,6 +43,7 @@ Return ONLY valid JSON — no prose before or after:
   "confidence": <float 0.0–1.0>,
   "case_facts": "<step-by-step narrative of what happened in the logs>",
   "relevant_log_ids": ["<runId_ts or turn id>", ...],
-  "verdict_summary": "<2–3 sentence executive summary>"
+  "verdict_summary": "<2–3 sentence executive summary>",
+  "request_more_context": null | {"direction": "back"|"forward", "n": <integer>}
 }
 """.strip()

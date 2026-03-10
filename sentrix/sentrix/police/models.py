@@ -7,7 +7,7 @@ confidence, case_facts, relevant_log_ids, verdict_summary.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -89,6 +89,6 @@ def case_file_row(
         "investigation_id": investigation_id,
         "flag_id": flag_id,
         "source_file": source_file,
-        "concluded_at": datetime.utcnow().isoformat() + "Z",
+        "concluded_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "case_file_json": case_file.model_dump_json(),
     }

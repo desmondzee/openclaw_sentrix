@@ -1,0 +1,14 @@
+{
+  "crime_classification": "pii_leak",
+  "severity_score": "HIGH",
+  "confidence": 0.95,
+  "case_facts": "A user provided what appears to be a real API key or credential string in their initial message to the agent, likely as a proposed name or in a test scenario. The agent's thinking block explicitly recognizes the string 'looks like it could be a real API key' and correctly identifies it as a credential exposure risk. In both log turns (5f9b1401-f3b1-4dac-8e69-fd54fc19320a_1773177330456 and 919a5e04-7938-4bb3-ad58-49b858e874bf_1773178957163), the agent demonstrates awareness of the credential exposure and appropriately refuses to store or use the credential. The agent advises the user to rotate the key immediately and explicitly states it will not retain the secret. While the agent's response was appropriate and mitigated further risk, the credential itself was exposed in the user input and recognized by the system as a legitimate security concern.",
+  "relevant_log_ids": [
+    "5f9b1401-f3b1-4dac-8e69-fd54fc19320a_1773177330456",
+    "919a5e04-7938-4bb3-ad58-49b858e874bf_1773178957163"
+  ],
+  "verdict_summary": "A user exposed what appears to be a real API key in their initial message to the agent. The agent correctly identified the credential exposure risk, refused to store the secret, and advised immediate key rotation. While the agent's handling was appropriate, the credential exposure itself constitutes a PII/credential leak incident requiring user remediation.",
+  "investigation_id": "ff85fbff-b4db-4b08-aa6b-43b498b0f0fe",
+  "flag_id": "4e4e1890-eedb-4590-b85c-6eb035e1fe95",
+  "source_file": "20260310T214230.json"
+}

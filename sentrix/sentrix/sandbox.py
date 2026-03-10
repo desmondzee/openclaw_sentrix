@@ -305,8 +305,13 @@ async def run_agent_in_sandbox(
     return result.exit_code if hasattr(result, "exit_code") else 0
 
 
-async def run_sandbox(config: SentrixConfig, *, patrol: bool = False) -> None:
-    """Full lifecycle: create sandbox, health check, channel logins, log sync, then idle. If patrol=True, run patrol loop in background."""
+async def run_sandbox(
+    config: SentrixConfig,
+    *,
+    patrol: bool = False,
+    escalation_level: str | None = None,
+) -> None:
+    """Full lifecycle: create sandbox, health check, channel logins, log sync, then idle. If patrol=True, run patrol loop in background. If escalation_level is set, auto-invoke investigator on qualifying flags (priority queue: HIGH > MEDIUM > LOW)."""
     log_dir = config.ensure_log_dir()
 
     server_proc = await ensure_server_running()
@@ -356,16 +361,38 @@ async def run_sandbox(config: SentrixConfig, *, patrol: bool = False) -> None:
     )
 
     patrol_task = None
+    investigator_task = None
     if patrol:
         from sentrix.patrol.sweep import run_patrol_loop
+
         flags_path = log_dir / "patrol_flags.jsonl"
+        inv_queue: asyncio.Queue[tuple] = asyncio.Queue()
+
+        def _on_flags(flags: list) -> None:
+            if escalation_level and flags:
+                from sentrix.police.escalation import enqueue_flags_for_investigation
+                enqueue_flags_for_investigation(flags, escalation_level, log_dir, inv_queue)
+
         async def _patrol_loop() -> None:
             try:
-                await run_patrol_loop(log_dir, poll_secs=30.0, flags_path=flags_path)
+                await run_patrol_loop(
+                    log_dir,
+                    poll_secs=30.0,
+                    flags_path=flags_path,
+                    on_flags=_on_flags,
+                )
             except asyncio.CancelledError:
                 pass
+
         patrol_task = asyncio.create_task(_patrol_loop())
         print("[sentrix] patrol swarm started (flags → patrol_flags.jsonl)")
+
+        if escalation_level:
+            from sentrix.police.escalation import run_investigation_consumer
+            investigator_task = asyncio.create_task(
+                run_investigation_consumer(log_dir, inv_queue, escalation_level)
+            )
+            print("[sentrix] investigator auto-escalation started (queue by severity)")
 
     print("[sentrix] running. Press Ctrl+C to stop. Use 'sentrix chat' in another terminal to talk to the agent.\n")
 
@@ -378,6 +405,12 @@ async def run_sandbox(config: SentrixConfig, *, patrol: bool = False) -> None:
         print("\n[sentrix] shutting down...")
         stop_event.set()
 
+        if investigator_task:
+            investigator_task.cancel()
+            try:
+                await investigator_task
+            except asyncio.CancelledError:
+                pass
         if patrol_task:
             patrol_task.cancel()
             try:

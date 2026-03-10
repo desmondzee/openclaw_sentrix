@@ -59,6 +59,7 @@ def main() -> None:
 @click.option("--image", default=SANDBOX_IMAGE, help="Sandbox Docker image.")
 @click.option("--verbose", is_flag=True, help="Verbose output.")
 @click.option("--patrol", is_flag=True, help="Run patrol swarm: review agent logs, flag malicious content to console and patrol_flags.jsonl.")
+@click.option("--escalation", type=click.Choice(["low_above", "medium_above", "high_only"]), default=None, help="When to auto-run investigator on patrol flags (default with --patrol: medium_above).")
 def run(
     log_dir: str,
     rotate_mins: int,
@@ -69,6 +70,7 @@ def run(
     image: str,
     verbose: bool,
     patrol: bool,
+    escalation: str | None,
 ) -> None:
     """Start sandboxed OpenClaw (create, health check, channel login, log sync).
 
@@ -118,9 +120,9 @@ def run(
     if reasoning is None:
         reasoning = True
 
-    # Patrol: enable if --patrol or wizard selected it; escalation from wizard or env
+    # Patrol: enable if --patrol or wizard selected it; escalation from --escalation, wizard, or env
     patrol = patrol or patrol_enabled_from_wizard
-    escalation_level = escalation_level_from_wizard or parsed_env.get("SENTRIX_ESCALATION")
+    escalation_level = escalation or escalation_level_from_wizard or parsed_env.get("SENTRIX_ESCALATION")
     if patrol and not escalation_level:
         escalation_level = "medium_above"
 

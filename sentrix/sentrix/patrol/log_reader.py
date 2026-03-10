@@ -142,3 +142,29 @@ def load_turns_from_log_dir(
 ) -> list[dict[str, Any]]:
     """Load all normalised turns from log_dir (optionally after given runId_ts set)."""
     return list(iter_turns(log_dir, after_run_id_ts=after_run_id_ts))
+
+
+def sorted_log_filenames(log_dir: Path) -> list[str]:
+    """Return sorted list of log filenames (*.json in log_dir root, timestamp-like names)."""
+    paths = _log_files_sorted(log_dir)
+    return [p.name for p in paths]
+
+
+def load_turns_for_source_files(
+    log_dir: Path,
+    source_files_ordered: list[str],
+) -> list[dict[str, Any]]:
+    """Load turns from log_dir for the given source files (order preserved), sorted by file order then ts."""
+    all_turns = load_turns_from_log_dir(log_dir)
+    file_set = set(source_files_ordered)
+    by_file: dict[str, list[dict]] = {f: [] for f in source_files_ordered}
+    for t in all_turns:
+        sf = t.get("source_file") or ""
+        if sf in by_file:
+            by_file[sf].append(t)
+    out: list[dict[str, Any]] = []
+    for f in source_files_ordered:
+        turns = by_file.get(f, [])
+        turns.sort(key=lambda x: (x.get("ts") or 0, x.get("runId_ts") or ""))
+        out.extend(turns)
+    return out

@@ -60,9 +60,11 @@ sentrix stop              Stop running containers (best-effort)
 | `--verbose` | | Verbose output |
 | `--patrol` | | Run patrol swarm: review agent logs, flag malicious content (PII, harmful intent, unsafe tool use) to console and `patrol_flags.jsonl`; requires `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` |
 
-#### Patrol swarm (`--patrol`)
+#### Patrol swarm (`--patrol` or wizard)
 
-With `sentrix run --patrol`, a safety patrol runs in the background. It reads synced agent logs from `log_dir`, runs a LangGraph-based patrol (scaling `N = ceil(1 + log2(n))` agents for `n` log streams), and writes any flags to the console and to `log_dir/patrol_flags.jsonl`. Cleared state is stored in `log_dir/patrol_state.db` (SQLite, WAL mode); re-review happens only when `PATROL_RULESET_VERSION` or `PATROL_MODEL_VERSION` change.
+When you run `sentrix run` without `-e` env vars, the setup wizard asks whether to **enable the patrol swarm** and at what level to **escalate to the investigator** (Low and above, Medium and above, or High only). You can also enable patrol with the `--patrol` flag. With patrol enabled, a safety patrol runs in the background: it reads synced agent logs from `log_dir`, runs a LangGraph-based patrol (scaling `N = ceil(1 + log2(n))` agents for `n` log streams), and writes any flags to the console and to `log_dir/patrol_flags.jsonl`. Cleared state is stored in `log_dir/patrol_state.db` (SQLite, WAL mode); re-review happens only when `PATROL_RULESET_VERSION` or `PATROL_MODEL_VERSION` change.
+
+If you chose an escalation level (or use `--patrol` with default "medium and above"), flags that meet the threshold are **automatically queued for the investigator**. The queue is ordered by severity (HIGH first, then MEDIUM, then LOW), chronological within each rank. Once a report is written for a flag, that flag is marked complete in `log_dir/police.db` (table `investigated_flags`, WAL mode) so it is not re-investigated.
 
 | Env var | Description |
 |---------|-------------|

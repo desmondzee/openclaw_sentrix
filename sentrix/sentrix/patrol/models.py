@@ -7,7 +7,7 @@ Data contracts for threat signals, votes, flags, and sweep results.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -51,7 +51,7 @@ class ThreatSignal(BaseModel):
     signal_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     source_agent: str
     source_file: str = ""  # log stream id, e.g. 20260310T185751.json
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     domain: str = "log"
     severity: Severity
     confidence: float = Field(ge=0.0, le=1.0)
@@ -82,7 +82,7 @@ class ViolationVote(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     pii_labels_detected: list[str] = Field(default_factory=list)
     observation: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     category: str | None = None
     run_id_ts: str = ""  # set when building consensus for flag emission
 
@@ -109,7 +109,7 @@ class PatrolFlag(BaseModel):
     pii_labels_union: list[str] = Field(default_factory=list)
     referral_summary: str = ""
     pheromone_level: float = 0.0
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     categories: list[str] = Field(default_factory=list)  # pii_leak, harmful_intent, etc.
 
     @model_validator(mode="before")
@@ -138,4 +138,4 @@ class SweepResult(BaseModel):
     flags_produced: int
     pheromone_snapshot: dict[str, float] = Field(default_factory=dict)
     duration_ms: float = 0.0
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
