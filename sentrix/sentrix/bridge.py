@@ -26,24 +26,37 @@ DEFAULT_ORIGINS = frozenset({
 
 PING_BODY = b"Sentrix Bridge is running. You can close this tab."
 
+# websockets 13+ asyncio server expects process_request to return a Response object, not a tuple
+try:
+    from websockets.http11 import Response as WSResponse
+    from websockets.datastructures import Headers as WSHeaders
+    _USE_WS_RESPONSE = True
+except ImportError:
+    WSResponse = None
+    WSHeaders = None
+    _USE_WS_RESPONSE = False
+
 
 def _get_process_request():
     """Return process_request callable for websockets.serve (GET /ping).
-    Supports both (path, request_headers) in v10 and (connection, request) in v12+.
+    Legacy (v10): (path, request_headers) -> (HTTPStatus, headers_list, body) | None.
+    Asyncio (v13+): (connection, request) -> websockets.http11.Response | None.
     """
 
     async def process_request(
         path_or_connection: Any,
         request_headers_or_request: Any,
-    ) -> tuple[http.HTTPStatus, list[tuple[str, str]], bytes] | None:
+    ) -> Any:
         path = (
             getattr(request_headers_or_request, "path", path_or_connection)
             if not isinstance(path_or_connection, str)
             else path_or_connection
         )
-        if isinstance(path, str) and path.split("?")[0].rstrip("/") == "/ping":
-            return (http.HTTPStatus.OK, [], PING_BODY)
-        return None
+        if not isinstance(path, str) or path.split("?")[0].rstrip("/") != "/ping":
+            return None
+        if _USE_WS_RESPONSE and WSResponse is not None and WSHeaders is not None:
+            return WSResponse(200, "OK", WSHeaders(), PING_BODY)
+        return (http.HTTPStatus.OK, [], PING_BODY)
 
     return process_request
 
@@ -208,27 +221,73 @@ def run_bridge(
     cert_path: Path | None = None,
     key_path: Path | None = None,
 ) -> None:
-    """Run the WSS bridge server (blocking)."""
+    """Run the WSS bridge server (blocking). WSS listens on --port; a separate
+    HTTPS server listens on port - 1 for GET /ping only (for cert trust).
+    """
     allowed = _load_origins()
     cert_cache = Path.home() / ".sentrix" / "bridge.pem"
     ssl_ctx = _make_ssl_context(cert_path, key_path, cert_cache)
 
+    ping_port = port - 1
+    ping_host = "127.0.0.1" if host == "0.0.0.0" else host
+    display_host = ping_host or "localhost"
+
     async def handler(ws: websockets.WebSocketServerProtocol) -> None:
         await _handler(ws, log_dir, allowed)
 
-    process_req = _get_process_request()
-
     async def _serve() -> None:
+        loop = asyncio.get_running_loop()
+        ping_server = await loop.create_server(
+            lambda: _PingProtocol(PING_BODY),
+            host,
+            ping_port,
+            ssl=ssl_ctx,
+        )
+        logger.info(
+            "Ping server (cert trust): https://%s:%s/ping",
+            display_host,
+            ping_port,
+        )
         async with websockets.serve(
             handler,
             host,
             port,
             ssl=ssl_ctx,
-            process_request=process_req,
             ping_interval=20,
             ping_timeout=20,
-        ) as server:
-            logger.info("Bridge listening on wss://%s:%s (ping: https://%s:%s/ping)", host, port, host or "localhost", port)
+        ) as wss_server:
+            logger.info(
+                "Bridge WSS: wss://%s:%s (to trust cert, open https://%s:%s/ping)",
+                display_host,
+                port,
+                display_host,
+                ping_port,
+            )
             await asyncio.Future()
 
     asyncio.run(_serve())
+
+
+class _PingProtocol(asyncio.Protocol):
+    """Minimal HTTPS handler: only GET /ping -> 200 OK."""
+
+    def __init__(self, body: bytes) -> None:
+        self.body = body
+
+    def connection_made(self, transport: asyncio.BaseTransport) -> None:
+        self.transport = transport
+
+    def data_received(self, data: bytes) -> None:
+        try:
+            first_line = data.split(b"\r\n", 1)[0].decode("utf-8", errors="replace")
+            if first_line.startswith("GET /ping") or first_line.startswith("GET /ping?"):
+                response = (
+                    b"HTTP/1.1 200 OK\r\n"
+                    b"Content-Type: text/plain; charset=utf-8\r\n"
+                    b"Content-Length: " + str(len(self.body)).encode() + b"\r\n"
+                    b"Connection: close\r\n\r\n"
+                ) + self.body
+                self.transport.write(response)
+        except Exception:
+            pass
+        self.transport.close()

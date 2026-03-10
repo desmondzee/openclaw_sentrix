@@ -15,16 +15,19 @@ interface ChatMessage {
   text: string;
 }
 
+/** Bridge runs WSS on --port and a separate HTTPS /ping server on port - 1 (for cert trust). */
 function bridgeUrlToPingUrl(wssUrl: string): string {
   try {
     const u = new URL(wssUrl);
     u.protocol = "https:";
+    const portNum = parseInt(u.port || "8765", 10);
+    u.port = String(portNum - 1);
     u.pathname = "/ping";
     u.search = "";
     u.hash = "";
     return u.toString();
   } catch {
-    return "https://localhost:8765/ping";
+    return "https://localhost:8764/ping";
   }
 }
 
@@ -126,8 +129,8 @@ export default function ClawPage() {
   const pingUrl = bridgeUrlToPingUrl(bridgeUrl.trim() || DEFAULT_BRIDGE_URL);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--background)]">
-      <div className="border-b border-[var(--pixel-border)] bg-[var(--surface)] px-4 py-3">
+    <div className="flex min-h-[calc(100vh-3.5rem)] flex-col bg-[var(--background)]">
+      <div className="shrink-0 border-b border-[var(--pixel-border)] bg-[var(--surface)] px-4 py-3">
         <label className="mb-2 block font-[family-name:var(--font-pixel)] text-xs font-bold text-[var(--foreground)]">
           Bridge URL
         </label>
@@ -167,7 +170,7 @@ export default function ClawPage() {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">
         <div className="mx-auto max-w-2xl space-y-4">
           {messages.length === 0 && connectionStatus === "connected" && (
             <p className="font-mono text-sm text-gray-500">
@@ -197,7 +200,7 @@ export default function ClawPage() {
         </div>
       </div>
 
-      <div className="border-t border-[var(--pixel-border)] bg-[var(--surface)] p-4">
+      <div className="shrink-0 border-t border-[var(--pixel-border)] bg-[var(--surface)] p-4">
         <div className="mx-auto flex max-w-2xl gap-2">
           <input
             type="text"
