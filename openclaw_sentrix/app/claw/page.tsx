@@ -31,6 +31,20 @@ function bridgeUrlToPingUrl(wssUrl: string): string {
   }
 }
 
+/** Same host:port as WSS but https - open this to trust the cert for the WebSocket port. */
+function bridgeUrlToWssTrustUrl(wssUrl: string): string {
+  try {
+    const u = new URL(wssUrl);
+    u.protocol = "https:";
+    u.pathname = "/";
+    u.search = "";
+    u.hash = "";
+    return u.toString();
+  } catch {
+    return "https://localhost:8765";
+  }
+}
+
 export default function ClawPage() {
   const [bridgeUrl, setBridgeUrl] = useState(DEFAULT_BRIDGE_URL);
   const [isMounted, setIsMounted] = useState(false);
@@ -127,6 +141,7 @@ export default function ClawPage() {
     isMounted &&
     bridgeUrl.trim().length > 0;
   const pingUrl = bridgeUrlToPingUrl(bridgeUrl.trim() || DEFAULT_BRIDGE_URL);
+  const wssTrustUrl = bridgeUrlToWssTrustUrl(bridgeUrl.trim() || DEFAULT_BRIDGE_URL);
 
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col bg-[var(--background)]">
@@ -155,18 +170,32 @@ export default function ClawPage() {
       {showErrorBanner && (
         <div className="border-b border-amber-500/50 bg-amber-500/10 px-4 py-3">
           <p className="font-mono text-sm text-amber-200">
-            Cannot connect to Local Claw. If you are running Sentrix locally, you
-            may need to{" "}
-            <a
-              href={pingUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline hover:text-amber-100"
-            >
-              Click Here
-            </a>{" "}
-            to trust the local connection.
+            Cannot connect to Local Claw. If you are running Sentrix locally:
           </p>
+          <ul className="mt-2 list-inside list-disc space-y-1 font-mono text-sm text-amber-200">
+            <li>
+              <a
+                href={pingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-amber-100"
+              >
+                Trust the ping server
+              </a>{" "}
+              (open and accept the certificate).
+            </li>
+            <li>
+              <a
+                href={wssTrustUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-amber-100"
+              >
+                Trust the WSS port
+              </a>{" "}
+              (you may see an error page; accept the certificate anyway so the app can connect).
+            </li>
+          </ul>
         </div>
       )}
 

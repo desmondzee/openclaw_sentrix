@@ -207,10 +207,15 @@ async def _handler(
             origin = headers.get("Origin") or headers.get("origin")
 
     if not _check_origin(origin, allowed_origins):
-        logger.warning("Rejected origin: %r", origin)
+        logger.warning(
+            "Rejected WebSocket connection: origin %r not in allowlist %s",
+            origin,
+            sorted(allowed_origins),
+        )
         await ws.close(1008, "Origin not allowed")
         return
 
+    logger.info("WebSocket connection accepted (origin=%r)", origin)
     await _proxy_connection(ws, log_dir)
 
 
@@ -224,6 +229,7 @@ def run_bridge(
     """Run the WSS bridge server (blocking). WSS listens on --port; a separate
     HTTPS server listens on port - 1 for GET /ping only (for cert trust).
     """
+    logging.basicConfig(level=logging.INFO, format="[bridge] %(message)s")
     allowed = _load_origins()
     cert_cache = Path.home() / ".sentrix" / "bridge.pem"
     ssl_ctx = _make_ssl_context(cert_path, key_path, cert_cache)
