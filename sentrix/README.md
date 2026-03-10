@@ -96,7 +96,7 @@ The [openclaw-sentrix](https://openclaw-sentrix.vercel.app) Next.js app has a **
 2. In another terminal, start the bridge: `sentrix bridge` (WSS on port 8766, trust server on 8765)
 3. Open the app, go to **Your Claw**, and set **Bridge URL** to `wss://localhost:8766` (or your tunnel URL; the app stores it in localStorage)
 
-**First-time cert trust (self-signed):** The bridge runs **WSS on `--port`** (default **8766**) and a separate **HTTPS server on port − 1** (default **8765**) that answers any GET with 200 OK. Open the app’s “open this link” URL (e.g. `https://localhost:8765`) in a new tab and accept the certificate once; the same cert is used for WSS, so the app can then connect to `wss://localhost:8766`. Safari and iOS enforce a 398-day max validity; the bridge generates a 365-day cert. Chrome requires the host in the cert’s Subject Alternative Name (SAN); the bridge includes `localhost` in SAN.
+**First-time cert trust (self-signed):** The bridge runs **WSS on `--port`** (default **8766**) and an **HTTPS server on port − 1** (default **8765**). Browsers trust certificates per port, so you must accept the cert for **both**: (1) open the app’s “Trust server” link (e.g. `https://localhost:8765`) and accept; (2) open the “WSS port” link (e.g. `https://localhost:8766`), accept the cert even if you see an error page. Then reconnect. Safari and iOS enforce a 398-day max validity; the bridge generates a 365-day cert. Chrome requires the host in the cert’s Subject Alternative Name (SAN); the bridge includes `localhost` in SAN.
 
 **Tunnel (optional):** To use the app from another device (e.g. phone), run a tunnel (e.g. ngrok, cloudflared) that exposes the bridge with a public wss URL and paste that URL into the app's Bridge URL field.
 

@@ -17,6 +17,19 @@ from sentrix.sandbox import connect_sandbox, read_sandbox_id
 
 logger = logging.getLogger(__name__)
 
+
+class _SuppressInvalidUpgradeTraceback(logging.Filter):
+    """Suppress noisy tracebacks when someone opens the WSS port in a browser (plain HTTP -> InvalidUpgrade)."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.getMessage() != "opening handshake failed":
+            return True
+        if record.exc_info and record.exc_info[1] is not None:
+            exc = record.exc_info[1]
+            if "InvalidUpgrade" in type(exc).__name__ or "keep-alive" in str(exc):
+                return False
+        return True
+
 # Origins allowed for WebSocket connections (no trailing slashes; browsers do not send them).
 DEFAULT_ORIGINS = frozenset({
     "https://openclaw-sentrix.vercel.app",
@@ -232,6 +245,7 @@ def run_bridge(
     server (which would reject plain HTTP with 426 and noisy tracebacks).
     """
     logging.basicConfig(level=logging.INFO, format="[bridge] %(message)s")
+    logging.getLogger().addFilter(_SuppressInvalidUpgradeTraceback())
     allowed = _load_origins()
     cert_cache = Path.home() / ".sentrix" / "bridge.pem"
     ssl_ctx = _make_ssl_context(cert_path, key_path, cert_cache)

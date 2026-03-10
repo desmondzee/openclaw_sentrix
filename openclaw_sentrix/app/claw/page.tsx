@@ -15,7 +15,7 @@ interface ChatMessage {
   text: string;
 }
 
-/** Trust server runs on port - 1 (any GET -> 200 OK). Open in browser to accept the cert. */
+/** Trust server runs on port - 1. Open in browser to accept the cert. */
 function bridgeUrlToTrustUrl(wssUrl: string): string {
   try {
     const u = new URL(wssUrl);
@@ -28,6 +28,20 @@ function bridgeUrlToTrustUrl(wssUrl: string): string {
     return u.toString();
   } catch {
     return "https://localhost:8765";
+  }
+}
+
+/** Same host/port as WSS. Opening this and accepting the cert trusts the WebSocket connection (browsers trust per port). */
+function bridgeUrlToWssTrustUrl(wssUrl: string): string {
+  try {
+    const u = new URL(wssUrl);
+    u.protocol = "https:";
+    u.pathname = "/";
+    u.search = "";
+    u.hash = "";
+    return u.toString();
+  } catch {
+    return "https://localhost:8766";
   }
 }
 
@@ -127,6 +141,7 @@ export default function ClawPage() {
     isMounted &&
     bridgeUrl.trim().length > 0;
   const trustUrl = bridgeUrlToTrustUrl(bridgeUrl.trim() || DEFAULT_BRIDGE_URL);
+  const wssTrustUrl = bridgeUrlToWssTrustUrl(bridgeUrl.trim() || DEFAULT_BRIDGE_URL);
 
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col bg-[var(--background)]">
@@ -155,17 +170,21 @@ export default function ClawPage() {
       {showErrorBanner && (
         <div className="border-b border-amber-500/50 bg-amber-500/10 px-4 py-3">
           <p className="font-mono text-sm text-amber-200">
-            Cannot connect to Local Claw. If you are running Sentrix locally,{" "}
-            <a
-              href={trustUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline hover:text-amber-100"
-            >
-              open this link
-            </a>{" "}
-            and accept the certificate, then try again.
+            Cannot connect to Local Claw. Browsers trust certificates per port. Accept the cert for both:
           </p>
+          <ol className="mt-2 list-inside list-decimal space-y-1 font-mono text-sm text-amber-200">
+            <li>
+              <a href={trustUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-100">
+                Trust server
+              </a>
+            </li>
+            <li>
+              <a href={wssTrustUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-100">
+                WSS port (you may see an error page — accept the certificate anyway)
+              </a>
+            </li>
+          </ol>
+          <p className="mt-2 font-mono text-xs text-amber-200/80">Then reconnect above.</p>
         </div>
       )}
 
