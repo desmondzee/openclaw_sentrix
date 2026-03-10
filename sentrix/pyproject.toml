@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sentrix"
+version = "0.1.0"
+description = "Sandboxed OpenClaw with API log capture"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "opensandbox",
+    "click",
+    "rich",
+    "httpx",
+    "questionary",
+]
+
+[project.scripts]
+sentrix = "sentrix.cli:main"
