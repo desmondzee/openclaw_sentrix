@@ -50,6 +50,8 @@ DEFAULT_ORIGINS = frozenset({
 })
 
 PING_BODY = b"Sentrix Bridge is running. You can close this tab."
+# Shown when user opens the WSS port (e.g. https://localhost:8766) in browser to accept the cert.
+CERT_ACCEPTED_BODY = b"Certificate accepted for WSS. Close this tab and return to the app."
 
 # websockets 13+ asyncio server expects process_request to return a Response object, not a tuple
 try:
@@ -62,26 +64,36 @@ except ImportError:
     _USE_WS_RESPONSE = False
 
 
+def _is_websocket_upgrade_request(request: Any) -> bool:
+    """True if the request is a WebSocket handshake (Upgrade: websocket)."""
+    headers = getattr(request, "headers", None)
+    if not headers:
+        return False
+    upgrade = (headers.get("Upgrade") or headers.get("upgrade") or "").strip()
+    return "websocket" in upgrade.lower()
+
+
 def _get_process_request():
-    """Return process_request callable for websockets.serve (GET /ping).
-    Legacy (v10): (path, request_headers) -> (HTTPStatus, headers_list, body) | None.
-    Asyncio (v13+): (connection, request) -> websockets.http11.Response | None.
+    """Return process_request for websockets.serve.
+    Handles plain HTTP GET (e.g. user opening WSS URL in browser to trust cert)
+    by returning 200 OK so they see a friendly message instead of InvalidUpgrade.
+    Asyncio (v13+): (connection, request) -> Response | None.
     """
 
-    async def process_request(
-        path_or_connection: Any,
-        request_headers_or_request: Any,
-    ) -> Any:
-        path = (
-            getattr(request_headers_or_request, "path", path_or_connection)
-            if not isinstance(path_or_connection, str)
-            else path_or_connection
-        )
-        if not isinstance(path, str) or path.split("?")[0].rstrip("/") != "/ping":
+    def process_request(connection: Any, request: Any) -> Any:
+        # If this is a real WebSocket upgrade, let the library handle it.
+        if _is_websocket_upgrade_request(request):
             return None
+        # Plain GET (browser navigation to https://localhost:8766) — return 200 for cert trust.
+        body = CERT_ACCEPTED_BODY
         if _USE_WS_RESPONSE and WSResponse is not None and WSHeaders is not None:
-            return WSResponse(200, "OK", WSHeaders(), PING_BODY)
-        return (http.HTTPStatus.OK, [], PING_BODY)
+            headers = WSHeaders()
+            headers["Content-Type"] = "text/plain; charset=utf-8"
+            headers["Content-Length"] = str(len(body))
+            headers["Connection"] = "close"
+            return WSResponse(200, "OK", headers, body)
+        # Old websockets without http11.Response: let handshake run (user will see InvalidUpgrade page).
+        return None
 
     return process_request
 
@@ -295,6 +307,7 @@ def run_bridge(
             ssl=ssl_ctx,
             ping_interval=20,
             ping_timeout=20,
+            process_request=_get_process_request(),
         ) as wss_server:
             logger.info(
                 "Bridge WSS: wss://%s:%s",

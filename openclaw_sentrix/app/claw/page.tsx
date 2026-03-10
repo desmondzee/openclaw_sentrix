@@ -48,6 +48,7 @@ function bridgeUrlToWssTrustUrl(wssUrl: string): string {
 export default function ClawPage() {
   const [bridgeUrl, setBridgeUrl] = useState(DEFAULT_BRIDGE_URL);
   const [isMounted, setIsMounted] = useState(false);
+  const [reconnectKey, setReconnectKey] = useState(0);
   const [connectionStatus, setConnectionStatus] = useState<
     "idle" | "connecting" | "connected" | "disconnected" | "error"
   >("idle");
@@ -76,7 +77,7 @@ export default function ClawPage() {
     }
   }, []);
 
-  // Connect WebSocket only when mounted and we have a URL; cleanup on unmount or URL change
+  // Connect WebSocket only when mounted and we have a URL; re-run when reconnectKey changes
   useEffect(() => {
     if (!isMounted || !bridgeUrl.trim()) return;
 
@@ -116,7 +117,7 @@ export default function ClawPage() {
       ws.close();
       wsRef.current = null;
     };
-  }, [isMounted, bridgeUrl]);
+  }, [isMounted, bridgeUrl, reconnectKey]);
 
   const sendMessage = useCallback(() => {
     const text = inputValue.trim();
@@ -157,13 +158,22 @@ export default function ClawPage() {
           placeholder="wss://localhost:8766"
           className="w-full rounded border border-[var(--pixel-border)] bg-[var(--background)] px-3 py-2 font-mono text-sm text-[var(--foreground)] placeholder:text-gray-500 focus:border-[var(--accent)] focus:outline-none"
         />
-        <p className="mt-1 font-mono text-xs text-gray-500">
+        <p className="mt-1 flex items-center gap-2 font-mono text-xs text-gray-500">
           Status:{" "}
           {connectionStatus === "connecting" && "Connecting…"}
           {connectionStatus === "connected" && "Connected"}
           {connectionStatus === "disconnected" && "Disconnected"}
           {connectionStatus === "error" && "Error"}
           {connectionStatus === "idle" && "Idle"}
+          {(connectionStatus === "error" || connectionStatus === "disconnected") && (
+            <button
+              type="button"
+              onClick={() => setReconnectKey((k) => k + 1)}
+              className="rounded border border-amber-500/50 bg-amber-500/20 px-2 py-1 font-mono text-xs text-amber-200 hover:bg-amber-500/30"
+            >
+              Reconnect
+            </button>
+          )}
         </p>
       </div>
 
@@ -183,11 +193,11 @@ export default function ClawPage() {
               <a href={wssTrustUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-100">
                 WSS port
               </a>{" "}
-              — the page will show an error like &quot;invalid Connection header&quot; or &quot;You cannot access a WebSocket server directly with a browser&quot;. That is normal. Use &quot;Advanced&quot; → &quot;Proceed to localhost&quot; (or similar) to accept the certificate, then close the tab.
+              — accept the certificate (e.g. &quot;Advanced&quot; → &quot;Proceed to localhost&quot;). You should then see &quot;Certificate accepted for WSS. Close this tab.&quot;
             </li>
           </ol>
           <p className="mt-2 font-mono text-xs text-amber-200/80">
-            Use the same host in the Bridge URL as you trusted (e.g. wss://localhost:8766). Then reconnect above.
+            Use the same host in the Bridge URL as you trusted (e.g. wss://localhost:8766 or wss://127.0.0.1:8766). Then click <strong>Reconnect</strong> or change the URL and blur to retry.
           </p>
         </div>
       )}
