@@ -176,15 +176,19 @@ export default function ClawPage() {
             <li>
               <a href={trustUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-100">
                 Trust server
-              </a>
+              </a>{" "}
+              — you should see &quot;Sentrix Bridge is running&quot;.
             </li>
             <li>
               <a href={wssTrustUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-100">
-                WSS port (you may see an error page — accept the certificate anyway)
-              </a>
+                WSS port
+              </a>{" "}
+              — the page will show an error like &quot;invalid Connection header&quot; or &quot;You cannot access a WebSocket server directly with a browser&quot;. That is normal. Use &quot;Advanced&quot; → &quot;Proceed to localhost&quot; (or similar) to accept the certificate, then close the tab.
             </li>
           </ol>
-          <p className="mt-2 font-mono text-xs text-amber-200/80">Then reconnect above.</p>
+          <p className="mt-2 font-mono text-xs text-amber-200/80">
+            Use the same host in the Bridge URL as you trusted (e.g. wss://localhost:8766). Then reconnect above.
+          </p>
         </div>
       )}
 

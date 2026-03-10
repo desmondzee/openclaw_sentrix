@@ -22,13 +22,25 @@ class _SuppressInvalidUpgradeTraceback(logging.Filter):
     """Suppress noisy tracebacks when someone opens the WSS port in a browser (plain HTTP -> InvalidUpgrade)."""
 
     def filter(self, record: logging.LogRecord) -> bool:
-        if record.getMessage() != "opening handshake failed":
+        msg = record.getMessage()
+        # Suppress "connection rejected (426 Upgrade Required)" from websockets when opening WSS port in browser
+        if "connection rejected" in msg and "426" in msg:
+            return False
+        if "opening handshake failed" not in msg:
             return True
         if record.exc_info and record.exc_info[1] is not None:
             exc = record.exc_info[1]
             if "InvalidUpgrade" in type(exc).__name__ or "keep-alive" in str(exc):
                 return False
         return True
+
+
+def _install_suppress_filter() -> None:
+    """Install InvalidUpgrade traceback filter on root and websockets loggers (they may have their own handlers)."""
+    f = _SuppressInvalidUpgradeTraceback()
+    logging.getLogger().addFilter(f)
+    for name in ("websockets", "websockets.server", "websockets.asyncio", "websockets.asyncio.server"):
+        logging.getLogger(name).addFilter(f)
 
 # Origins allowed for WebSocket connections (no trailing slashes; browsers do not send them).
 DEFAULT_ORIGINS = frozenset({
@@ -118,6 +130,11 @@ def _make_ssl_context(
     now = datetime.now(timezone.utc)
     not_valid_after = now + timedelta(days=365)  # Apple 398-day limit; use 365
 
+    import ipaddress
+    san_list = [
+        x509.DNSName("localhost"),
+        x509.IPAddress(ipaddress.ip_address("127.0.0.1")),
+    ]
     builder = (
         x509.CertificateBuilder()
         .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "localhost")]))
@@ -127,7 +144,7 @@ def _make_ssl_context(
         .not_valid_before(now)
         .not_valid_after(not_valid_after)
         .add_extension(
-            x509.SubjectAlternativeName([x509.DNSName("localhost")]),
+            x509.SubjectAlternativeName(san_list),
             critical=False,
         )
     )
@@ -141,7 +158,7 @@ def _make_ssl_context(
 
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     ctx.load_cert_chain(str(cache))
-    logger.info("Generated self-signed cert at %s (valid 365 days, SAN localhost)", cache)
+    logger.info("Generated self-signed cert at %s (valid 365 days, SAN localhost + 127.0.0.1)", cache)
     return ctx
 
 
@@ -245,7 +262,7 @@ def run_bridge(
     server (which would reject plain HTTP with 426 and noisy tracebacks).
     """
     logging.basicConfig(level=logging.INFO, format="[bridge] %(message)s")
-    logging.getLogger().addFilter(_SuppressInvalidUpgradeTraceback())
+    _install_suppress_filter()
     allowed = _load_origins()
     cert_cache = Path.home() / ".sentrix" / "bridge.pem"
     ssl_ctx = _make_ssl_context(cert_path, key_path, cert_cache)
