@@ -1,7 +1,9 @@
-"""Host-side log sync: pulls closed JSON files from the sandbox.
+"""Host-side log sync: pulls log files from the sandbox.
 
-Only downloads files whose 10-minute time window has explicitly closed,
-avoiding incomplete data from the currently-active rotation file.
+Closed files (past rotation window) are synced once and tracked.
+The currently-active rotation file is copied in-sandbox to a temp path
+(/tmp/sync_active.json), then that snapshot is pulled so the patrol gets
+near real-time access without reading a file that is being written.
 Tracks already-synced filenames to avoid redundant downloads.
 """
 
@@ -81,8 +83,14 @@ async def sync_once(
         is_active = ts is not None and ts > cutoff
 
         if is_active and not force_all:
-            # Active file: pull every time so host has latest; fix incomplete JSON; do not add to synced
-            content = await sandbox.files.read_file(remote_path)
+            # Active file: copy to temp in sandbox (snapshot at copy time), then pull temp file.
+            # Avoids reading a file while it is being written; log_reader can parse valid JSON from it.
+            sandbox_tmp = "/tmp/sync_active.json"
+            await sandbox.commands.run(f"cp {remote_path} {sandbox_tmp} 2>/dev/null || true")
+            try:
+                content = await sandbox.files.read_file(sandbox_tmp)
+            except Exception:
+                content = "[]"
             content = _fix_incomplete_json(content)
             local_path = log_dir / filename
             local_path.write_text(content, encoding="utf-8")

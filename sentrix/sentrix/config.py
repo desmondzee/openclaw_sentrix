@@ -17,6 +17,12 @@ SANDBOX_LOG_DIR = "/data/agent_logs"
 SANDBOX_ENTRYPOINT = "/opt/sentrix/entrypoint.sh"
 SANDBOX_COLLECTOR = "/opt/sentrix/collect_logs.py"
 
+# Escalation: when to auto-invoke investigator on patrol flags
+ESCALATION_LOW_ABOVE = "low_above"   # LOW, MEDIUM, HIGH
+ESCALATION_MEDIUM_ABOVE = "medium_above"  # MEDIUM, HIGH
+ESCALATION_HIGH_ONLY = "high_only"   # HIGH only
+
+
 @dataclass
 class SentrixConfig:
     log_dir: Path = field(default_factory=lambda: Path("./agent_logs"))
@@ -28,6 +34,8 @@ class SentrixConfig:
     verbose: bool = False
     extra_env: dict[str, str] = field(default_factory=dict)
     interactive_channels: list[str] = field(default_factory=list)
+    patrol_enabled: bool = False
+    escalation_level: str | None = None  # low_above | medium_above | high_only
 
     def sandbox_env(self) -> dict[str, str]:
         """Environment variables to inject into the sandbox container."""

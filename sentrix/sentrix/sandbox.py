@@ -305,8 +305,8 @@ async def run_agent_in_sandbox(
     return result.exit_code if hasattr(result, "exit_code") else 0
 
 
-async def run_sandbox(config: SentrixConfig) -> None:
-    """Full lifecycle: create sandbox, health check, channel logins, log sync, then idle."""
+async def run_sandbox(config: SentrixConfig, *, patrol: bool = False) -> None:
+    """Full lifecycle: create sandbox, health check, channel logins, log sync, then idle. If patrol=True, run patrol loop in background."""
     log_dir = config.ensure_log_dir()
 
     server_proc = await ensure_server_running()
@@ -355,6 +355,18 @@ async def run_sandbox(config: SentrixConfig) -> None:
         run_sync_loop(sandbox, log_dir, config.rotate_mins, stop_event=stop_event)
     )
 
+    patrol_task = None
+    if patrol:
+        from sentrix.patrol.sweep import run_patrol_loop
+        flags_path = log_dir / "patrol_flags.jsonl"
+        async def _patrol_loop() -> None:
+            try:
+                await run_patrol_loop(log_dir, poll_secs=30.0, flags_path=flags_path)
+            except asyncio.CancelledError:
+                pass
+        patrol_task = asyncio.create_task(_patrol_loop())
+        print("[sentrix] patrol swarm started (flags → patrol_flags.jsonl)")
+
     print("[sentrix] running. Press Ctrl+C to stop. Use 'sentrix chat' in another terminal to talk to the agent.\n")
 
     try:
@@ -365,6 +377,13 @@ async def run_sandbox(config: SentrixConfig) -> None:
     finally:
         print("\n[sentrix] shutting down...")
         stop_event.set()
+
+        if patrol_task:
+            patrol_task.cancel()
+            try:
+                await patrol_task
+            except asyncio.CancelledError:
+                pass
 
         try:
             pulled = await final_sync(sandbox, log_dir, config.rotate_mins)

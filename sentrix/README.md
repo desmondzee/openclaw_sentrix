@@ -17,6 +17,8 @@ cd sentrix
 pip install -e .
 ```
 
+Use a virtual environment and install from the project directory so all dependencies (including `langgraph` for patrol and police) are installed. A global `pip install sentrix` may miss dependencies required for `sentrix run --patrol` and `sentrix police investigate`.
+
 ## Quick Start
 
 ```bash
@@ -56,6 +58,21 @@ sentrix stop              Stop running containers (best-effort)
 | `-e KEY=VALUE` | | Extra env vars (repeatable) |
 | `--image TAG` | `sentrix-openclaw:latest` | Override sandbox image |
 | `--verbose` | | Verbose output |
+| `--patrol` | | Run patrol swarm: review agent logs, flag malicious content (PII, harmful intent, unsafe tool use) to console and `patrol_flags.jsonl`; requires `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` |
+
+#### Patrol swarm (`--patrol`)
+
+With `sentrix run --patrol`, a safety patrol runs in the background. It reads synced agent logs from `log_dir`, runs a LangGraph-based patrol (scaling `N = ceil(1 + log2(n))` agents for `n` log streams), and writes any flags to the console and to `log_dir/patrol_flags.jsonl`. Cleared state is stored in `log_dir/patrol_state.db` (SQLite, WAL mode); re-review happens only when `PATROL_RULESET_VERSION` or `PATROL_MODEL_VERSION` change.
+
+| Env var | Description |
+|---------|-------------|
+| `OPENAI_API_KEY` or `PATROL_OPENAI_API_KEY` | API key for patrol LLM (OpenAI preferred if set) |
+| `ANTHROPIC_API_KEY` or `PATROL_ANTHROPIC_API_KEY` | API key for patrol LLM (used if OpenAI not set) |
+| `PATROL_MODEL` | Model name (e.g. `gpt-4o-mini`, `claude-3-5-haiku-20241022`) |
+| `PATROL_RULESET_VERSION` | Version string for safety rules; bump to re-review all logs |
+| `PATROL_MODEL_VERSION` | Model version string; bump when changing patrol model |
+| `PATROL_CONFIDENCE_THRESHOLD` | Min confidence to emit a flag (default `0.6`) |
+| `PATROL_MAX_TOKENS` | Max tokens per patrol LLM call (default `2048`) |
 
 ### `sentrix chat`
 

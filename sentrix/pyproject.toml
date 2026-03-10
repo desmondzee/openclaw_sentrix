@@ -14,6 +14,12 @@ dependencies = [
     "rich",
     "httpx",
     "questionary",
+    "python-dotenv",
+    "langgraph",
+    "langchain-core",
+    "langchain-openai",
+    "langchain-anthropic",
+    "pydantic>=2",
 ]
 
 [project.scripts]

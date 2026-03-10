@@ -282,10 +282,28 @@ def _step_channels() -> tuple[dict[str, str], list[str]]:
     return env, interactive
 
 
-def _step_security() -> dict[str, str]:
-    """Step 5: Security confirmation. Returns env vars for security config."""
+def _step_patrol() -> tuple[bool, str | None]:
+    """Step 5: Patrol swarm and escalation. Returns (patrol_enabled, escalation_level)."""
     console.print()
-    console.print("[bold]Step 5:[/bold] Security")
+    console.print("[bold]Step 5:[/bold] Patrol & investigator")
+    console.print("  [dim]Patrol reviews agent logs and flags suspicious content. The investigator writes a report for selected flags.[/dim]")
+
+    patrol_enabled = _confirm("Enable patrol swarm? (reviews logs, writes to patrol_flags.jsonl)", default=False)
+    escalation_level: str | None = None
+    if patrol_enabled:
+        choices = [
+            Choice(title="Low and above — escalate LOW, MEDIUM, HIGH flags to investigator", value="low_above"),
+            Choice(title="Medium and above — escalate MEDIUM and HIGH only", value="medium_above"),
+            Choice(title="High only — escalate HIGH severity only", value="high_only"),
+        ]
+        escalation_level = _select("When should the investigator auto-run on a flag?", choices)
+    return patrol_enabled, escalation_level
+
+
+def _step_security() -> dict[str, str]:
+    """Step 6: Security confirmation. Returns env vars for security config."""
+    console.print()
+    console.print("[bold]Step 6:[/bold] Security")
     console.print(Panel(
         "[bold]Sentrix applies these secure defaults:[/bold]\n\n"
         "  * Shell/command execution: [red]denied[/red]\n"
@@ -311,8 +329,8 @@ def _step_security() -> dict[str, str]:
 # Main wizard entry point
 # ---------------------------------------------------------------------------
 
-def run_setup_wizard() -> tuple[dict[str, str], list[str]]:
-    """Interactive setup wizard. Returns (env_vars, interactive_channels)."""
+def run_setup_wizard() -> tuple[dict[str, str], list[str], bool, str | None]:
+    """Interactive setup wizard. Returns (env_vars, interactive_channels, patrol_enabled, escalation_level)."""
     console.print()
     console.print(Panel.fit(
         "[bold]Sentrix Setup[/bold]\n"
@@ -333,7 +351,10 @@ def run_setup_wizard() -> tuple[dict[str, str], list[str]]:
     # Step 4: Channels
     channel_env, interactive_channels = _step_channels()
 
-    # Step 5: Security
+    # Step 5: Patrol & escalation
+    patrol_enabled, escalation_level = _step_patrol()
+
+    # Step 6: Security
     security_env = _step_security()
 
     # Summary
@@ -362,6 +383,10 @@ def run_setup_wizard() -> tuple[dict[str, str], list[str]]:
         elif ch["id"] in interactive_channels:
             all_ch_names.append(ch["name"])
     summary.add_row("Channels", ", ".join(all_ch_names) if all_ch_names else "None (configure later)")
+    summary.add_row("Patrol", "Yes" if patrol_enabled else "No")
+    if patrol_enabled and escalation_level:
+        esc_label = {"low_above": "Low and above", "medium_above": "Medium and above", "high_only": "High only"}.get(escalation_level, escalation_level)
+        summary.add_row("Investigator escalation", esc_label)
     summary.add_row("Security", "High (exec denied, sandbox all, pairing on)")
     console.print(summary)
     console.print()
@@ -381,4 +406,4 @@ def run_setup_wizard() -> tuple[dict[str, str], list[str]]:
     env.update(channel_env)
     env.update(security_env)
 
-    return env, interactive_channels
+    return env, interactive_channels, patrol_enabled, escalation_level

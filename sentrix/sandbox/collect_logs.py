@@ -3,7 +3,10 @@
 
 Reads /data/raw-stream.jsonl line-by-line and streams parsed objects into
 JSON array files under /data/agent_logs/, rotating every SENTRIX_ROTATE_MINS
-minutes (default 10).
+minutes (default 10). Writes every raw stream event (no filtering by event type)
+so patrol and log_reader have full coverage. User context for patrol uses
+Option C only (extract messages from first event per runId in this stream;
+no merge with OpenClaw file log).
 
 Designed for robustness:
   - Partial-line safe: buffers incomplete lines until \\n arrives.

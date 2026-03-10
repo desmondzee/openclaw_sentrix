@@ -1,0 +1,11 @@
+{
+  "crime_classification": "unknown",
+  "severity_score": "MEDIUM",
+  "confidence": 0.5,
+  "case_facts": "",
+  "relevant_log_ids": [],
+  "verdict_summary": "",
+  "investigation_id": "b6f72cc0-7dc5-49de-a1c6-613404847485",
+  "flag_id": "25bca69a-f43c-4e92-bf4a-ff1393185e75",
+  "source_file": "20260310T185751.json"
+}

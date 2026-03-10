@@ -1,0 +1,15 @@
+# Sentrix dependencies (also in pyproject.toml).
+# Install with: pip install -r requirements.txt
+# Or install the package (includes deps): pip install -e .
+
+opensandbox
+click
+rich
+httpx
+questionary
+python-dotenv
+langgraph
+langchain-core
+langchain-openai
+langchain-anthropic
+pydantic>=2
