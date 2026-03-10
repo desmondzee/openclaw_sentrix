@@ -18,3 +18,17 @@ __pycache__/
 **/build
 **/out
 **/tmp
+
+**/sentrix/agent_logs/reports/
+**/sentrix/agent_logs/*.json
+**/sentrix/agent_logs/*.jsonl
+**/sentrix/agent_logs/*.db
+**/sentrix/agent_logs/*.db-wal
+**/sentrix/agent_logs/*.db-shm
+**/sentrix/agent_logs/*.db-journal
+**/sentrix/agent_logs/*.db-lock
+**/sentrix/agent_logs/*.db-trace
+**/sentrix/agent_logs/*.db-wal
+**/sentrix/agent_logs/*.db-shm
+**/sentrix/agent_logs/*.db-journal
+**/sentrix/agent_logs/*.db-lock

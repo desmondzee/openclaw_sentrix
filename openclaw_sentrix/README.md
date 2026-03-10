@@ -27,6 +27,10 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## Your Claw tab
+
+The **Your Claw** tab lets you chat with OpenClaw in the browser. It connects to a **local WSS bridge** that you run on your machine (see the [Sentrix README](../sentrix/README.md) "Web UI (Your Claw)" section). You need `sentrix run` and `sentrix bridge` running locally; set the **Bridge URL** on the Your Claw page (e.g. `wss://localhost:8765` or your tunnel URL). The app stores the URL in localStorage.
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More

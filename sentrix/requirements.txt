@@ -13,3 +13,5 @@ langchain-core
 langchain-openai
 langchain-anthropic
 pydantic>=2
+websockets>=10
+cryptography

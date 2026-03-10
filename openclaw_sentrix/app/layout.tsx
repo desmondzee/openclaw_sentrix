@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Silkscreen, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { SmoothScroll } from "./components/SmoothScroll";
+import { AppNav } from "./components/AppNav";
 
 const silkscreen = Silkscreen({
   weight: ["400", "700"],
@@ -30,7 +31,10 @@ export default function RootLayout({
       <body
         className={`${silkscreen.variable} ${jetbrainsMono.variable} font-sans antialiased overflow-x-hidden`}
       >
-        <SmoothScroll>{children}</SmoothScroll>
+        <SmoothScroll>
+          <AppNav />
+          <div className="pt-14">{children}</div>
+        </SmoothScroll>
       </body>
     </html>
   );

@@ -205,6 +205,33 @@ def chat(log_dir: str, message: str | None) -> None:
 
 
 @main.command()
+@click.option("--log-dir", "log_dir", default="./agent_logs", type=click.Path(), help="Log directory (where .sentrix_sandbox_id is stored).")
+@click.option("--port", default=8765, type=int, help="Port for WSS bridge.")
+@click.option("--host", default="0.0.0.0", help="Host to bind (0.0.0.0 for all interfaces).")
+@click.option("--cert", "cert_path", default=None, type=click.Path(), help="Path to TLS certificate (optional).")
+@click.option("--key", "key_path", default=None, type=click.Path(), help="Path to TLS key (optional).")
+def bridge(
+    log_dir: str,
+    port: int,
+    host: str,
+    cert_path: str | None,
+    key_path: str | None,
+) -> None:
+    """Run the WSS bridge for the Web UI (Your Claw).
+
+    Requires 'sentrix run' in another terminal. Listens for wss:// connections,
+    validates Origin, and proxies to the OpenClaw Gateway in the sandbox.
+    GET /ping returns 200 OK for cert trust (open https://localhost:PORT/ping once if using self-signed).
+    """
+    from sentrix.bridge import run_bridge
+
+    path = Path(log_dir)
+    cert = Path(cert_path) if cert_path else None
+    key = Path(key_path) if key_path else None
+    run_bridge(log_dir=path, host=host, port=port, cert_path=cert, key_path=key)
+
+
+@main.command()
 @click.option("--image", default=SANDBOX_IMAGE, help="Image tag to build.")
 def build(image: str) -> None:
     """Build the sentrix sandbox Docker image."""
