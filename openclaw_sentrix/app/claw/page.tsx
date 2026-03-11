@@ -617,46 +617,46 @@ export default function ClawPage() {
           {/* ── Input bar ── */}
           <div className="shrink-0 border-t border-[var(--pixel-border)] bg-[var(--surface)] p-4">
             <div className="mx-auto flex max-w-2xl items-end gap-2">
-          <textarea
-            ref={textareaRef}
-            value={inputValue}
-            onChange={(e) => {
-              setInputValue(e.target.value);
-              // Auto-resize
-              const el = e.target;
-              el.style.height = "auto";
-              el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-              }
-            }}
-            placeholder="Type a message…"
-            disabled={connectionStatus !== "connected"}
-            rows={1}
-            className="flex-1 resize-none rounded border border-[var(--pixel-border)] bg-[var(--background)] px-3 py-2 font-mono text-sm text-[var(--foreground)] placeholder:text-gray-500 focus:border-[var(--accent)] focus:outline-none disabled:opacity-50"
-            style={{ maxHeight: 160 }}
-          />
-          <button
-            type="button"
-            onClick={sendMessage}
-            disabled={connectionStatus !== "connected" || !inputValue.trim()}
-            className="cursor-pointer rounded bg-[var(--accent)] px-4 py-2 font-[family-name:var(--font-pixel)] text-sm font-bold text-white hover:bg-[var(--accent-dim)] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Send
-          </button>
+              <textarea
+                ref={textareaRef}
+                value={inputValue}
+                onChange={(e) => {
+                  setInputValue(e.target.value);
+                  // Auto-resize
+                  const el = e.target;
+                  el.style.height = "auto";
+                  el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+                placeholder="Type a message…"
+                disabled={connectionStatus !== "connected"}
+                rows={1}
+                className="flex-1 resize-none rounded border border-[var(--pixel-border)] bg-[var(--background)] px-3 py-2 font-mono text-sm text-[var(--foreground)] placeholder:text-gray-500 focus:border-[var(--accent)] focus:outline-none disabled:opacity-50"
+                style={{ maxHeight: 160 }}
+              />
+              <button
+                type="button"
+                onClick={sendMessage}
+                disabled={connectionStatus !== "connected" || !inputValue.trim()}
+                className="cursor-pointer rounded bg-[var(--accent)] px-4 py-2 font-[family-name:var(--font-pixel)] text-sm font-bold text-white hover:bg-[var(--accent-dim)] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Send
+              </button>
             </div>
           </div>
         </div>
 
         {/* Right: sliding agent police panel (always in DOM; animate width for smooth slide) */}
         <div
-          className="flex shrink-0 overflow-hidden border-l border-[var(--pixel-border)] bg-[var(--surface)] transition-[flex-basis] duration-300 ease-out"
-          style={{ flexBasis: showAgentPanel ? 400 : 0, minWidth: showAgentPanel ? 400 : 0 }}
+          className="flex shrink-0 overflow-hidden border-l border-[var(--pixel-border)] bg-[var(--surface)] transition-[flex-basis,min-width] duration-300 ease-out"
+          style={{ flexBasis: showAgentPanel ? "50%" : "0%", minWidth: showAgentPanel ? "50%" : "0%" }}
         >
-          <div className="h-full w-[800px] shrink-0">
+          <div className="h-full w-full min-w-[320px] shrink-0">
             {showAgentPanel && (
               <SpriteView policeState={policeState} />
             )}
