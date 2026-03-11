@@ -7,6 +7,7 @@ import json
 import shutil
 import subprocess
 import sys
+import time
 from datetime import timedelta
 from pathlib import Path
 
@@ -419,6 +420,7 @@ async def run_sandbox(
     escalation_level: str | None = None,
 ) -> None:
     """Full lifecycle: create sandbox, health check, channel logins, log sync, then idle. If patrol=True, run patrol loop in background. If escalation_level is set, auto-invoke investigator on qualifying flags (priority queue: HIGH > MEDIUM > LOW)."""
+    start_ts = int(time.time() * 1000)
     log_dir = config.ensure_log_dir()
 
     server_proc = await ensure_server_running()
@@ -487,6 +489,7 @@ async def run_sandbox(
                     poll_secs=30.0,
                     flags_path=flags_path,
                     on_flags=_on_flags,
+                    min_ts=start_ts,
                 )
             except asyncio.CancelledError:
                 pass

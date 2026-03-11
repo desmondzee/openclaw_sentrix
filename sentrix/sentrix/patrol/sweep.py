@@ -41,12 +41,13 @@ def _group_turns_by_stream(turns: list[dict]) -> dict[str, list[dict]]:
 async def run_sweep_cycle(
     log_dir: Path,
     state_conn: sqlite3.Connection,
+    min_ts: int = 0,
 ) -> tuple[list[PatrolFlag], list[str]]:
     """
     One sweep: load turns, filter pending by cleared state + version, run graph,
     return flags and list of runId_ts that were reviewed (to mark cleared).
     """
-    turns = load_turns_from_log_dir(log_dir)
+    turns = load_turns_from_log_dir(log_dir, min_ts=min_ts)
     pending = filter_pending_turns(turns, state_conn, RULESET_VERSION, MODEL_VERSION)
     if not pending:
         return [], []
@@ -100,6 +101,7 @@ async def run_patrol_loop(
     poll_secs: float = 30.0,
     flags_path: Path | None = None,
     on_flags: Callable[[list[PatrolFlag]], None] | None = None,
+    min_ts: int = 0,
 ) -> None:
     """
     Loop: run sweep when there is pending work; idle otherwise. Write flags to
@@ -110,7 +112,7 @@ async def run_patrol_loop(
     flags_path = flags_path or (log_dir / "patrol_flags.jsonl")
     while True:
         try:
-            flags, _ = await run_sweep_cycle(log_dir, conn)
+            flags, _ = await run_sweep_cycle(log_dir, conn, min_ts=min_ts)
             if flags:
                 for f in flags:
                     line = json.dumps(f.to_jsonl_dict(), ensure_ascii=False) + "\n"

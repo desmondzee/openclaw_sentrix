@@ -68,6 +68,7 @@ def iter_turns(
     log_dir: Path,
     *,
     after_run_id_ts: set[str] | None = None,
+    min_ts: int = 0,
 ) -> Iterator[dict[str, Any]]:
     """Yield normalised turns from all JSON log files in log_dir.
 
@@ -115,6 +116,8 @@ def iter_turns(
                 runid_first_ts[run_id] = ts
 
             if event == "assistant_message_end":
+                if ts < min_ts:
+                    continue
                 raw_text = entry.get("rawText") or entry.get("raw_text") or ""
                 raw_thinking = entry.get("rawThinking") or entry.get("raw_thinking") or ""
                 run_id_ts = f"{run_id}_{ts}"
@@ -139,9 +142,10 @@ def load_turns_from_log_dir(
     log_dir: Path,
     *,
     after_run_id_ts: set[str] | None = None,
+    min_ts: int = 0,
 ) -> list[dict[str, Any]]:
     """Load all normalised turns from log_dir (optionally after given runId_ts set)."""
-    return list(iter_turns(log_dir, after_run_id_ts=after_run_id_ts))
+    return list(iter_turns(log_dir, after_run_id_ts=after_run_id_ts, min_ts=min_ts))
 
 
 def sorted_log_filenames(log_dir: Path) -> list[str]:
