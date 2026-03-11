@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   saveMessage,
@@ -7,6 +8,11 @@ import {
   clearHistory,
   type PersistedMessage,
 } from "@/lib/chatHistory";
+
+const SpriteView = dynamic(
+  () => import("@/app/components/AgentPolice").then((m) => m.SpriteView),
+  { ssr: false }
+);
 
 const STORAGE_KEY = "claw_bridge_url";
 const DEFAULT_BRIDGE_URL =
@@ -26,6 +32,14 @@ interface ChatMessage {
   /** IndexedDB key — present for persisted messages, used for pagination */
   dbKey?: number;
 }
+
+/** Agent police state from bridge get_state (runId-based agents + patrol flags) */
+export interface PoliceState {
+  agents: Array<{ id: string; name: string; status: string }>;
+  flags: Array<Record<string, unknown>>;
+}
+
+const INITIAL_POLICE_STATE: PoliceState = { agents: [], flags: [] };
 
 /** Trust server runs on port - 1. Open in browser to accept the cert. */
 function bridgeUrlToTrustUrl(wssUrl: string): string {
@@ -121,6 +135,9 @@ export default function ClawPage() {
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+  const [patrolEnabled, setPatrolEnabled] = useState(false);
+  const [hasUserSentMessage, setHasUserSentMessage] = useState(false);
+  const [policeState, setPoliceState] = useState<PoliceState>(INITIAL_POLICE_STATE);
   const wsRef = useRef<WebSocket | null>(null);
   const pendingIdRef = useRef<string | null>(null);
   const backoffMsRef = useRef(INITIAL_BACKOFF_MS);
@@ -326,14 +343,29 @@ export default function ClawPage() {
           const msg = JSON.parse(event.data as string) as {
             type?: string;
             id?: string;
-            payload?: { text?: string; accumulated?: string; status?: string };
+            payload?: {
+              text?: string;
+              accumulated?: string;
+              status?: string;
+              patrol_enabled?: boolean;
+              agents?: PoliceState["agents"];
+              flags?: PoliceState["flags"];
+            };
           };
 
           if (msg.type === "bridge.ready") {
-            // Gateway handshake complete — bridge is fully connected
+            setPatrolEnabled(msg.payload?.patrol_enabled ?? false);
             if (typeof window !== "undefined") {
-              console.log("[Claw] Bridge ready, gateway connected");
+              console.log("[Claw] Bridge ready, gateway connected", "patrol_enabled:", msg.payload?.patrol_enabled);
             }
+            return;
+          }
+
+          if (msg.type === "state" && msg.payload) {
+            setPoliceState({
+              agents: Array.isArray(msg.payload.agents) ? msg.payload.agents : [],
+              flags: Array.isArray(msg.payload.flags) ? msg.payload.flags : [],
+            });
             return;
           }
 
@@ -399,10 +431,27 @@ export default function ClawPage() {
     };
   }, [isMounted, bridgeUrl, reconnectKey]);
 
+  const showAgentPanel = patrolEnabled && hasUserSentMessage;
+  const POLL_STATE_INTERVAL_MS = 10_000;
+
+  // Poll get_state while agent police panel is open (no React Query; use existing WebSocket)
+  useEffect(() => {
+    if (!showAgentPanel || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+    const sendGetState = () => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: "get_state" }));
+      }
+    };
+    sendGetState();
+    const interval = setInterval(sendGetState, POLL_STATE_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [showAgentPanel]);
+
   const sendMessage = useCallback(() => {
     const text = inputValue.trim();
     if (!text || connectionStatus !== "connected" || !wsRef.current) return;
 
+    setHasUserSentMessage(true);
     const id = `msg-${Date.now()}`;
     pendingIdRef.current = id;
     setMessages((prev) => [...prev, { id, role: "user", text }]);
@@ -517,54 +566,57 @@ export default function ClawPage() {
         </div>
       )}
 
-      {/* ── Scrollable messages area ── */}
-      <div ref={scrollContainerRef} data-lenis-prevent className="min-h-0 flex-1 overflow-y-auto p-4">
-        <div className="mx-auto max-w-2xl space-y-4">
-          {/* Sentinel for infinite scroll-up */}
-          <div ref={sentinelRef} className="h-px" />
+      {/* ── Main row: chat (left) + sliding agent police panel (right) ── */}
+      <div className="flex min-h-0 flex-1">
+        {/* Left: chat + input (min-width on inner content to prevent squish during panel animation) */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div ref={scrollContainerRef} data-lenis-prevent className="min-h-0 flex-1 overflow-y-auto p-4">
+            <div className="mx-auto max-w-2xl min-w-[min(100%,40rem)] space-y-4">
+              {/* Sentinel for infinite scroll-up */}
+              <div ref={sentinelRef} className="h-px" />
 
-          {isLoadingMore && (
-            <p className="text-center font-mono text-xs text-gray-500 animate-pulse">
-              Loading older messages…
-            </p>
-          )}
+              {isLoadingMore && (
+                <p className="text-center font-mono text-xs text-gray-500 animate-pulse">
+                  Loading older messages…
+                </p>
+              )}
 
-          {messages.length === 0 && connectionStatus === "connected" && (
-            <p className="font-mono text-sm text-gray-500">
-              Say something to your Claw…
-            </p>
-          )}
-          {messages.map((m) => (
-            <div
-              key={m.id}
-              className={
-                m.role === "user"
-                  ? "flex justify-end"
-                  : "flex justify-start"
-              }
-            >
-              <div
-                className={
-                  m.role === "user"
-                    ? "max-w-[85%] rounded-lg bg-[var(--accent)]/20 px-3 py-2 font-mono text-sm"
-                    : "max-w-[85%] rounded-lg bg-[var(--surface)] border border-[var(--pixel-border)] px-3 py-2 font-mono text-sm whitespace-pre-wrap"
-                }
-              >
-                {m.role === "assistant"
-                  ? renderMarkdown(m.text)
-                  : m.text}
-              </div>
+              {messages.length === 0 && connectionStatus === "connected" && (
+                <p className="font-mono text-sm text-gray-500">
+                  Say something to your Claw…
+                </p>
+              )}
+              {messages.map((m) => (
+                <div
+                  key={m.id}
+                  className={
+                    m.role === "user"
+                      ? "flex justify-end"
+                      : "flex justify-start"
+                  }
+                >
+                  <div
+                    className={
+                      m.role === "user"
+                        ? "max-w-[85%] rounded-lg bg-[var(--accent)]/20 px-3 py-2 font-mono text-sm"
+                        : "max-w-[85%] rounded-lg bg-[var(--surface)] border border-[var(--pixel-border)] px-3 py-2 font-mono text-sm whitespace-pre-wrap"
+                    }
+                  >
+                    {m.role === "assistant"
+                      ? renderMarkdown(m.text)
+                      : m.text}
+                  </div>
+                </div>
+              ))}
+
+              {/* Anchor for auto-scroll to bottom */}
+              <div ref={messagesEndRef} />
             </div>
-          ))}
+          </div>
 
-          {/* Anchor for auto-scroll to bottom */}
-          <div ref={messagesEndRef} />
-        </div>
-      </div>
-
-      {/* ── Input bar ── */}
-      <div className="shrink-0 border-t border-[var(--pixel-border)] bg-[var(--surface)] p-4">
-        <div className="mx-auto flex max-w-2xl items-end gap-2">
+          {/* ── Input bar ── */}
+          <div className="shrink-0 border-t border-[var(--pixel-border)] bg-[var(--surface)] p-4">
+            <div className="mx-auto flex max-w-2xl items-end gap-2">
           <textarea
             ref={textareaRef}
             value={inputValue}
@@ -595,6 +647,20 @@ export default function ClawPage() {
           >
             Send
           </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: sliding agent police panel (always in DOM; animate width for smooth slide) */}
+        <div
+          className="flex shrink-0 overflow-hidden border-l border-[var(--pixel-border)] bg-[var(--surface)] transition-[flex-basis] duration-300 ease-out"
+          style={{ flexBasis: showAgentPanel ? 400 : 0, minWidth: showAgentPanel ? 400 : 0 }}
+        >
+          <div className="h-full w-[800px] shrink-0">
+            {showAgentPanel && (
+              <SpriteView policeState={policeState} />
+            )}
+          </div>
         </div>
       </div>
 

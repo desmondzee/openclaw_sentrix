@@ -156,6 +156,12 @@ def run(
             console.print(f"  [dim]investigator escalation: {esc_label}[/dim]")
 
     async def _run() -> None:
+        config.ensure_log_dir()
+        _sentrix_config_path = config.log_dir / ".sentrix_config.json"
+        _sentrix_config_path.write_text(
+            json.dumps({"patrol_enabled": config.patrol_enabled}),
+            encoding="utf-8",
+        )
         if nobridge:
             await run_sandbox(config, patrol=patrol, escalation_level=escalation_level)
             return

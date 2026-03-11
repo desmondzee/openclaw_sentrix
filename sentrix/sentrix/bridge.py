@@ -18,6 +18,71 @@ from sentrix.sandbox import connect_sandbox, get_direct_endpoint, read_sandbox_i
 
 logger = logging.getLogger(__name__)
 
+SENTRIX_CONFIG_FILE = ".sentrix_config.json"
+PATROL_FLAGS_FILE = "patrol_flags.jsonl"
+
+
+def _read_patrol_enabled(log_dir: Path) -> bool:
+    """Read patrol_enabled from log_dir/.sentrix_config.json. Returns False if missing or invalid."""
+    path = log_dir / SENTRIX_CONFIG_FILE
+    if not path.exists():
+        return False
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return bool(data.get("patrol_enabled", False))
+    except (json.JSONDecodeError, OSError):
+        return False
+
+
+def _get_agents_from_log_dir(log_dir: Path) -> list[dict]:
+    """Extract unique runIds from the most recent rotated .json in log_dir. Returns list of agent dicts."""
+    json_files = [
+        f
+        for f in log_dir.iterdir()
+        if f.suffix == ".json"
+        and f.name != PATROL_FLAGS_FILE
+        and not f.name.startswith(".")
+    ]
+    if not json_files:
+        return []
+    # Most recent by mtime
+    latest = max(json_files, key=lambda p: p.stat().st_mtime)
+    try:
+        raw = json.loads(latest.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return []
+    if not isinstance(raw, list):
+        return []
+    run_ids: set[str] = set()
+    for obj in raw:
+        if isinstance(obj, dict):
+            rid = obj.get("runId")
+            if isinstance(rid, str) and rid:
+                run_ids.add(rid)
+    return [
+        {"id": rid, "name": f"Agent {rid}", "status": "working"}
+        for rid in sorted(run_ids)
+    ]
+
+
+def _get_flags_from_log_dir(log_dir: Path) -> list[dict]:
+    """Read patrol_flags.jsonl (line-delimited JSON). Returns list of flag objects."""
+    path = log_dir / PATROL_FLAGS_FILE
+    if not path.exists():
+        return []
+    flags: list[dict] = []
+    try:
+        for line in path.read_text(encoding="utf-8").strip().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            obj = json.loads(line)
+            if isinstance(obj, dict):
+                flags.append(obj)
+    except (json.JSONDecodeError, OSError):
+        pass
+    return flags
+
 
 class _SuppressInvalidUpgradeTraceback(logging.Filter):
     """Suppress noisy tracebacks when someone opens the WSS port in a browser (plain HTTP -> InvalidUpgrade)."""
@@ -282,10 +347,11 @@ async def _proxy_connection(
                         await browser_ws.close(1011, "Gateway protocol error: unexpected connect response")
                         return
 
-                    # Notify browser that bridge is ready
+                    # Notify browser that bridge is ready (include patrol_enabled for agent police UI)
+                    patrol_enabled = _read_patrol_enabled(log_dir)
                     await browser_ws.send(json.dumps({
                         "type": "bridge.ready",
-                        "payload": {"status": "connected"},
+                        "payload": {"status": "connected", "patrol_enabled": patrol_enabled},
                     }))
 
                     logger.info("Gateway handshake complete, proxying chat")
@@ -308,6 +374,16 @@ async def _proxy_connection(
 
                                 msg_type = msg.get("type", "")
                                 browser_id = msg.get("id", str(uuid.uuid4()))
+
+                                # WS intercept: get_state is handled locally; do not forward to gateway
+                                if msg_type == "get_state":
+                                    agents = _get_agents_from_log_dir(log_dir)
+                                    flags = _get_flags_from_log_dir(log_dir)
+                                    await browser_ws.send(json.dumps({
+                                        "type": "state",
+                                        "payload": {"agents": agents, "flags": flags},
+                                    }))
+                                    continue
 
                                 if msg_type == "chat":
                                     text = (msg.get("payload", {}).get("text", "") or "").strip()

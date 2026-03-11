@@ -197,3 +197,8 @@ sentrix run -e ANTHROPIC_API_KEY=sk-ant-... -e OPENCLAW_DEFAULT_MODEL=anthropic/
 ## License
 
 MIT
+
+
+## Bugs to fix
+
+OpenAI API key error stating anthropic
