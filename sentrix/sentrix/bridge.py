@@ -259,7 +259,7 @@ async def _proxy_connection(
                                 "token": "sentrix-bridge-token",
                             },
                             "role": "operator",
-                            "scopes": [],
+                            "scopes": ["operator.admin"],
                         },
                     }
                     await gateway_ws.send(json.dumps(connect_frame))
@@ -365,43 +365,50 @@ async def _proxy_connection(
                                     event_name = msg.get("event", "")
                                     payload = msg.get("payload", {})
 
-                                    if event_name == "chat.update":
+                                    if event_name == "agent":
+                                        # Streaming assistant text via agent events
+                                        run_id = payload.get("runId", "")
+                                        stream = payload.get("stream", "")
+                                        data = payload.get("data", {})
+
+                                        if stream == "assistant" and isinstance(data, dict):
+                                            accumulated = data.get("text", "")
+                                            delta = data.get("delta", "")
+                                            browser_id = pending_runs.get(run_id, run_id)
+
+                                            if delta and accumulated:
+                                                run_buffers[run_id] = accumulated
+                                                await browser_ws.send(json.dumps({
+                                                    "type": "response.delta",
+                                                    "id": browser_id,
+                                                    "payload": {
+                                                        "text": delta,
+                                                        "accumulated": accumulated,
+                                                    },
+                                                }))
+
+                                    elif event_name == "chat":
                                         run_id = payload.get("runId", "")
                                         state = payload.get("state", "")
                                         browser_id = pending_runs.get(run_id, run_id)
 
-                                        # Extract text from message content
+                                        # Extract text from message.content[]
                                         message_data = payload.get("message", {})
                                         text = ""
-                                        if isinstance(message_data, dict):
-                                            text = message_data.get("text", "")
-                                            # Also check content array (OpenClaw uses both formats)
-                                            if not text and "content" in message_data:
-                                                content = message_data["content"]
-                                                if isinstance(content, str):
-                                                    text = content
-                                                elif isinstance(content, list):
-                                                    parts = []
-                                                    for block in content:
-                                                        if isinstance(block, dict) and block.get("type") == "text":
-                                                            parts.append(block.get("text", ""))
-                                                        elif isinstance(block, str):
-                                                            parts.append(block)
-                                                    text = "\n".join(parts)
+                                        if isinstance(message_data, dict) and "content" in message_data:
+                                            content = message_data["content"]
+                                            if isinstance(content, str):
+                                                text = content
+                                            elif isinstance(content, list):
+                                                parts = []
+                                                for block in content:
+                                                    if isinstance(block, dict) and block.get("type") == "text":
+                                                        parts.append(block.get("text", ""))
+                                                    elif isinstance(block, str):
+                                                        parts.append(block)
+                                                text = "\n".join(parts)
 
-                                        if state == "delta" and text:
-                                            run_buffers[run_id] = run_buffers.get(run_id, "") + text
-                                            # Send incremental delta to browser
-                                            await browser_ws.send(json.dumps({
-                                                "type": "response.delta",
-                                                "id": browser_id,
-                                                "payload": {
-                                                    "text": text,
-                                                    "accumulated": run_buffers.get(run_id, ""),
-                                                },
-                                            }))
-
-                                        elif state == "final":
+                                        if state == "final":
                                             final_text = text or run_buffers.get(run_id, "")
                                             await browser_ws.send(json.dumps({
                                                 "type": "response",
@@ -435,10 +442,9 @@ async def _proxy_connection(
                                             run_buffers.pop(run_id, None)
 
                                     elif event_name == "tick":
-                                        pass  # Gateway keepalive, no action needed
+                                        pass  # Gateway keepalive
 
-                                    else:
-                                        logger.debug("Gateway event: %s", event_name)
+                                    # Silently ignore health, presence, etc.
 
                                 elif msg_type == "res":
                                     # Response to our chat.send — just an ack

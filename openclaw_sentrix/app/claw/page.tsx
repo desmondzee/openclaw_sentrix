@@ -48,6 +48,57 @@ function bridgeUrlToWssTrustUrl(wssUrl: string): string {
   }
 }
 
+/** Render basic inline markdown: **bold** and *italic* */
+function renderMarkdown(text: string): React.ReactNode {
+  // Split on **bold** first, then *italic* within each segment
+  const parts: React.ReactNode[] = [];
+  const boldRegex = /\*\*(.+?)\*\*/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+
+  while ((match = boldRegex.exec(text)) !== null) {
+    // Text before the bold
+    if (match.index > lastIndex) {
+      parts.push(renderItalic(text.slice(lastIndex, match.index), key++));
+    }
+    // Bold text (also check for italic inside)
+    parts.push(
+      <strong key={`b${key++}`} style={{ fontWeight: 700 }}>
+        {match[1]}
+      </strong>
+    );
+    lastIndex = match.index + match[0].length;
+  }
+  // Remaining text after last bold
+  if (lastIndex < text.length) {
+    parts.push(renderItalic(text.slice(lastIndex), key++));
+  }
+  return parts.length > 0 ? parts : text;
+}
+
+function renderItalic(text: string, baseKey: number): React.ReactNode {
+  const italicRegex = /\*(.+?)\*/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+
+  while ((match = italicRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    parts.push(
+      <em key={`i${baseKey}-${key++}`}>{match[1]}</em>
+    );
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts.length > 0 ? <span key={`s${baseKey}`}>{parts}</span> : text;
+}
+
 export default function ClawPage() {
   const [bridgeUrl, setBridgeUrl] = useState(DEFAULT_BRIDGE_URL);
   const [isMounted, setIsMounted] = useState(false);
@@ -321,7 +372,9 @@ export default function ClawPage() {
                     : "max-w-[85%] rounded-lg bg-[var(--surface)] border border-[var(--pixel-border)] px-3 py-2 font-mono text-sm whitespace-pre-wrap"
                 }
               >
-                {m.text}
+                {m.role === "assistant"
+                  ? renderMarkdown(m.text)
+                  : m.text}
               </div>
             </div>
           ))}
