@@ -534,49 +534,52 @@ def run_bridge(
     server (which would reject plain HTTP with 426 and noisy tracebacks).
     """
     logging.basicConfig(level=logging.INFO, format="[bridge] %(message)s")
+    asyncio.run(serve_bridge_async(log_dir, host, port, cert_path, key_path))
+
+
+async def serve_bridge_async(
+    log_dir: Path,
+    host: str = "0.0.0.0",
+    port: int = 8766,
+    cert_path: Path | None = None,
+    key_path: Path | None = None,
+) -> None:
+    """Run the WSS bridge in the current event loop (e.g. from sentrix run). Runs until cancelled."""
     _install_suppress_filter()
     allowed = _load_origins()
     cert_cache = Path.home() / ".sentrix" / "bridge.pem"
     ssl_ctx = _make_ssl_context(cert_path, key_path, cert_cache)
 
-    trust_port = port - 1  # HTTPS-only: any GET -> 200 OK for cert trust
+    trust_port = port - 1
     display_host = "127.0.0.1" if host == "0.0.0.0" else host or "localhost"
 
     async def handler(ws: websockets.WebSocketServerProtocol) -> None:
         await _handler(ws, log_dir, allowed)
 
-    async def _serve() -> None:
-        loop = asyncio.get_running_loop()
-        trust_server = await loop.create_server(
-            lambda: _TrustProtocol(PING_BODY),
-            host,
-            trust_port,
-            ssl=ssl_ctx,
-        )
-        logger.info(
-            "Trust server (open in browser to accept cert): https://%s:%s or https://%s:%s/ping",
-            display_host,
-            trust_port,
-            display_host,
-            trust_port,
-        )
-        async with websockets.serve(
-            handler,
-            host,
-            port,
-            ssl=ssl_ctx,
-            ping_interval=20,
-            ping_timeout=20,
-            process_request=_get_process_request(),
-        ) as wss_server:
-            logger.info(
-                "Bridge WSS: wss://%s:%s",
-                display_host,
-                port,
-            )
-            await asyncio.Future()
-
-    asyncio.run(_serve())
+    _ = await asyncio.get_running_loop().create_server(
+        lambda: _TrustProtocol(PING_BODY),
+        host,
+        trust_port,
+        ssl=ssl_ctx,
+    )
+    logger.info(
+        "Trust server (open in browser to accept cert): https://%s:%s or https://%s:%s/ping",
+        display_host,
+        trust_port,
+        display_host,
+        trust_port,
+    )
+    async with websockets.serve(
+        handler,
+        host,
+        port,
+        ssl=ssl_ctx,
+        ping_interval=20,
+        ping_timeout=20,
+        process_request=_get_process_request(),
+    ) as wss_server:
+        logger.info("Bridge WSS: wss://%s:%s", display_host, port)
+        await asyncio.Future()
 
 
 class _TrustProtocol(asyncio.Protocol):

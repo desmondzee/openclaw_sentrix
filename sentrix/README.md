@@ -39,9 +39,9 @@ Then it builds the sandbox image (first run only), starts the gateway and log co
 ## CLI Usage
 
 ```
-sentrix run [OPTIONS]     Start sandbox (gateway + logs); run until Ctrl+C
+sentrix run [OPTIONS]     Start sandbox (gateway + logs) and WSS bridge; run until Ctrl+C (use --nobridge to skip bridge)
 sentrix chat [OPTIONS]    Attach to running sandbox and run the agent in the terminal
-sentrix bridge [OPTIONS]  Run WSS bridge for Web UI (Your Claw); see "Web UI" below
+sentrix bridge [OPTIONS]  Run WSS bridge only (e.g. if you ran sentrix run --nobridge); see "Web UI" below
 sentrix build [OPTIONS]   Build the sandbox Docker image
 sentrix logs [OPTIONS]    View captured log files
 sentrix stop              Stop running containers (best-effort)
@@ -60,6 +60,7 @@ sentrix stop              Stop running containers (best-effort)
 | `--image TAG` | `sentrix-openclaw:latest` | Override sandbox image |
 | `--verbose` | | Verbose output |
 | `--patrol` | | Run patrol swarm: review agent logs, flag malicious content (PII, harmful intent, unsafe tool use) to console and `patrol_flags.jsonl`; requires `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` |
+| `--nobridge` | | Do not start the WSS bridge (default: bridge runs with `sentrix run` for the Web UI) |
 
 #### Patrol swarm (`--patrol` or wizard)
 
@@ -92,11 +93,10 @@ Without `--message`, runs an interactive loop: type a message and press Enter to
 
 The [openclaw-sentrix](https://openclaw-sentrix.vercel.app) Next.js app has a **Your Claw** tab where you can chat with OpenClaw in the browser. The app is served over HTTPS from Vercel, so it must connect to your local sandbox via **wss://** (secure WebSocket). Run the **bridge** on your machine to accept browser connections and proxy them to the OpenClaw Gateway inside the sandbox.
 
-1. In one terminal, start the sandbox: `sentrix run`
-2. In another terminal, start the bridge: `sentrix bridge` (WSS on port 8766, trust server on 8765)
-3. Open the app, go to **Your Claw**, and set **Bridge URL** to `wss://localhost:8766` (or `wss://127.0.0.1:8766`; the app stores it in localStorage)
+1. Start the sandbox (and bridge): `sentrix run`. The WSS bridge runs automatically on port 8766. Use `sentrix run --nobridge` if you only want the sandbox and will run the bridge separately.
+2. Open the app, go to **Your Claw**, and set **Bridge URL** to `wss://localhost:8766` (or `wss://127.0.0.1:8766`; the app stores it in localStorage)
 
-You do **not** need to run `sentrix chat` for the web UI; the bridge proxies directly to the OpenClaw Gateway inside the sandbox started by `sentrix run`.
+You do **not** need to run `sentrix chat` or a separate `sentrix bridge` for the web UI; `sentrix run` starts the bridge by default and it proxies to the OpenClaw Gateway inside the sandbox.
 
 **First-time cert trust (self-signed):** The bridge runs **WSS on `--port`** (default **8766**) and an **HTTPS server on port − 1** (default **8765**). Browsers trust certificates per port, so you must accept the cert for **both**: (1) open the app’s “Trust server” link (e.g. `https://localhost:8765`) and accept; (2) open the “WSS port” link (e.g. `https://localhost:8766`), accept the cert; you should then see "Certificate accepted for WSS. Close this tab." Click **Reconnect** in the app. Safari and iOS enforce a 398-day max validity; the bridge generates a 365-day cert. Chrome requires the host in the cert’s Subject Alternative Name (SAN); the bridge includes both `localhost` and `127.0.0.1` in SAN. Use the same host in the Bridge URL as you trusted (e.g. wss://localhost:8766 or wss://127.0.0.1:8766). If you have an old cached cert, remove `~/.sentrix/bridge.pem` and restart the bridge to regenerate.
 

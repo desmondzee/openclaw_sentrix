@@ -60,6 +60,7 @@ def main() -> None:
 @click.option("--verbose", is_flag=True, help="Verbose output.")
 @click.option("--patrol", is_flag=True, help="Run patrol swarm: review agent logs, flag malicious content to console and patrol_flags.jsonl.")
 @click.option("--escalation", type=click.Choice(["low_above", "medium_above", "high_only"]), default=None, help="When to auto-run investigator on patrol flags (default with --patrol: medium_above).")
+@click.option("--nobridge", is_flag=True, help="Do not run the WSS bridge for the Web UI (by default sentrix run also starts the bridge).")
 def run(
     log_dir: str,
     rotate_mins: int,
@@ -71,10 +72,12 @@ def run(
     verbose: bool,
     patrol: bool,
     escalation: str | None,
+    nobridge: bool,
 ) -> None:
     """Start sandboxed OpenClaw (create, health check, channel login, log sync).
 
-    Runs in the foreground until Ctrl+C. In another terminal run
+    By default also starts the WSS bridge for the Web UI (Your Claw). Use
+    --nobridge to skip the bridge. Runs in the foreground until Ctrl+C. In another terminal run
     'sentrix chat' to attach an interactive agent session. When called
     without -e flags, launches an interactive setup wizard for provider,
     API key, model, and channels. With --patrol, also runs the patrol swarm
@@ -144,14 +147,33 @@ def run(
     console.print(f"[bold]sentrix[/bold] starting sandbox (image={config.image})")
     console.print(f"  logs → {config.log_dir.resolve()}")
     console.print(f"  rotation every {config.rotate_mins}min | port {config.port}")
+    if not nobridge:
+        console.print("  [dim]WSS bridge enabled (Web UI: wss://127.0.0.1:8766)[/dim]")
     if patrol:
         console.print("  [dim]patrol swarm enabled[/dim]")
         if escalation_level:
             esc_label = {"low_above": "Low+", "medium_above": "Medium+", "high_only": "High only"}.get(escalation_level, escalation_level)
             console.print(f"  [dim]investigator escalation: {esc_label}[/dim]")
 
+    async def _run() -> None:
+        if nobridge:
+            await run_sandbox(config, patrol=patrol, escalation_level=escalation_level)
+            return
+        from sentrix.bridge import serve_bridge_async
+        bridge_task = asyncio.create_task(
+            serve_bridge_async(log_dir=config.log_dir, host="0.0.0.0", port=8766)
+        )
+        try:
+            await run_sandbox(config, patrol=patrol, escalation_level=escalation_level)
+        finally:
+            bridge_task.cancel()
+            try:
+                await bridge_task
+            except asyncio.CancelledError:
+                pass
+
     try:
-        asyncio.run(run_sandbox(config, patrol=patrol, escalation_level=escalation_level))
+        asyncio.run(_run())
     except KeyboardInterrupt:
         pass
 

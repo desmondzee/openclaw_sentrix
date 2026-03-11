@@ -1,6 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  saveMessage,
+  getRecentMessages,
+  type PersistedMessage,
+} from "@/lib/chatHistory";
 
 const STORAGE_KEY = "claw_bridge_url";
 const DEFAULT_BRIDGE_URL =
@@ -10,12 +15,15 @@ const DEFAULT_BRIDGE_URL =
 
 const INITIAL_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30000;
+const PAGE_SIZE = 20;
 
 type MessageRole = "user" | "assistant";
 interface ChatMessage {
   id: string;
   role: MessageRole;
   text: string;
+  /** IndexedDB key — present for persisted messages, used for pagination */
+  dbKey?: number;
 }
 
 /** Trust server runs on port - 1. Open in browser to accept the cert. */
@@ -109,13 +117,26 @@ export default function ClawPage() {
   const [lastClose, setLastClose] = useState<{ code: number; reason: string } | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const pendingIdRef = useRef<string | null>(null);
   const backoffMsRef = useRef(INITIAL_BACKOFF_MS);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isUnmountedRef = useRef(false);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  /** Tracks smallest dbKey in current message list, for pagination cursor */
+  const oldestKeyRef = useRef<number | undefined>(undefined);
+
+  // Scroll to bottom when new messages arrive
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
 
   // Load bridge URL from localStorage only on client after mount (avoid hydration mismatch)
+  // Also load initial chat history from IndexedDB
   useEffect(() => {
     setIsMounted(true);
     try {
@@ -124,7 +145,108 @@ export default function ClawPage() {
     } catch {
       // ignore
     }
+
+    // Load recent messages from IndexedDB
+    (async () => {
+      try {
+        const { messages: stored, hasMore: more } = await getRecentMessages(PAGE_SIZE);
+        if (stored.length > 0) {
+          const loaded: ChatMessage[] = stored.map((m: PersistedMessage) => ({
+            id: m.id,
+            role: m.role,
+            text: m.text,
+            dbKey: m.key,
+          }));
+          setMessages(loaded);
+          setHasMore(more);
+          oldestKeyRef.current = loaded[0]?.dbKey;
+          // Scroll to bottom after loading history
+          setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+          }, 50);
+        }
+      } catch {
+        // IndexedDB unavailable — degrade gracefully
+      }
+    })();
   }, []);
+
+  // Scroll to bottom when new messages are added (not when loading older ones)
+  const prevMessageCountRef = useRef(0);
+  useEffect(() => {
+    if (messages.length > prevMessageCountRef.current && prevMessageCountRef.current > 0) {
+      // Only auto-scroll if the newest messages were appended (not prepended)
+      const lastMsg = messages[messages.length - 1];
+      const prevLast = prevMessageCountRef.current;
+      if (prevLast > 0) {
+        scrollToBottom();
+      }
+    }
+    prevMessageCountRef.current = messages.length;
+  }, [messages, scrollToBottom]);
+
+  // IntersectionObserver for infinite scroll-up
+  useEffect(() => {
+    if (!isMounted || !sentinelRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && hasMore && !isLoadingMore) {
+          loadOlderMessages();
+        }
+      },
+      {
+        root: scrollContainerRef.current,
+        rootMargin: "100px 0px 0px 0px",
+        threshold: 0,
+      }
+    );
+
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMounted, hasMore, isLoadingMore]);
+
+  const loadOlderMessages = useCallback(async () => {
+    if (isLoadingMore || !hasMore) return;
+    setIsLoadingMore(true);
+
+    try {
+      const cursor = oldestKeyRef.current;
+      const { messages: older, hasMore: more } = await getRecentMessages(PAGE_SIZE, cursor);
+      if (older.length > 0) {
+        const loaded: ChatMessage[] = older.map((m: PersistedMessage) => ({
+          id: m.id,
+          role: m.role,
+          text: m.text,
+          dbKey: m.key,
+        }));
+
+        // Preserve scroll position when prepending
+        const container = scrollContainerRef.current;
+        const prevScrollHeight = container?.scrollHeight ?? 0;
+
+        setMessages((prev) => [...loaded, ...prev]);
+        setHasMore(more);
+        oldestKeyRef.current = loaded[0]?.dbKey;
+
+        // Restore scroll position after DOM update
+        requestAnimationFrame(() => {
+          if (container) {
+            const newScrollHeight = container.scrollHeight;
+            container.scrollTop += newScrollHeight - prevScrollHeight;
+          }
+        });
+      } else {
+        setHasMore(false);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, hasMore]);
 
   // Persist bridge URL to localStorage when user changes it
   const saveBridgeUrl = useCallback((url: string) => {
@@ -218,17 +340,26 @@ export default function ClawPage() {
 
           if (msg.type === "response" && msg.payload?.text != null) {
             const id = msg.id ?? `r-${Date.now()}`;
+            const finalText = msg.payload.text;
             setMessages((prev) => {
               // Replace streaming message with final, or add new
               const existing = prev.findIndex((m) => m.id === id && m.role === "assistant");
               if (existing >= 0) {
                 const updated = [...prev];
-                updated[existing] = { ...updated[existing], text: msg.payload!.text! };
+                updated[existing] = { ...updated[existing], text: finalText };
                 return updated;
               }
-              return [...prev, { id, role: "assistant", text: msg.payload!.text! }];
+              return [...prev, { id, role: "assistant", text: finalText }];
             });
             if (pendingIdRef.current === id) pendingIdRef.current = null;
+
+            // Persist final assistant message to IndexedDB
+            saveMessage({
+              id,
+              role: "assistant",
+              text: finalText,
+              timestamp: Date.now(),
+            }).catch(() => { });
             return;
           }
         } catch {
@@ -263,6 +394,14 @@ export default function ClawPage() {
     setMessages((prev) => [...prev, { id, role: "user", text }]);
     setInputValue("");
 
+    // Persist user message to IndexedDB
+    saveMessage({
+      id,
+      role: "user",
+      text,
+      timestamp: Date.now(),
+    }).catch(() => { });
+
     const payload = {
       type: "chat",
       id,
@@ -280,7 +419,8 @@ export default function ClawPage() {
   const wssTrustUrl = bridgeUrlToWssTrustUrl(bridgeUrl.trim() || DEFAULT_BRIDGE_URL);
 
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)] flex-col bg-[var(--background)]">
+    <div className="flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden bg-[var(--background)]">
+      {/* ── Header: Bridge URL config ── */}
       <div className="shrink-0 border-b border-[var(--pixel-border)] bg-[var(--surface)] px-4 py-3">
         <label className="mb-2 block font-[family-name:var(--font-pixel)] text-xs font-bold text-[var(--foreground)]">
           Bridge URL
@@ -310,7 +450,7 @@ export default function ClawPage() {
                 backoffMsRef.current = INITIAL_BACKOFF_MS;
                 setReconnectKey((k) => k + 1);
               }}
-              className="rounded border border-amber-500/50 bg-amber-500/20 px-2 py-1 font-mono text-xs text-amber-200 hover:bg-amber-500/30"
+              className="cursor-pointer rounded border border-amber-500/50 bg-amber-500/20 px-2 py-1 font-mono text-xs text-amber-200 hover:bg-amber-500/30"
             >
               Reconnect
             </button>
@@ -325,7 +465,7 @@ export default function ClawPage() {
       </div>
 
       {showErrorBanner && (
-        <div className="border-b border-amber-500/50 bg-amber-500/10 px-4 py-3">
+        <div className="shrink-0 border-b border-amber-500/50 bg-amber-500/10 px-4 py-3">
           <p className="font-mono text-sm text-amber-200">
             Cannot connect to Local Claw. Browsers trust certificates per port. Accept the cert for both:
           </p>
@@ -349,8 +489,18 @@ export default function ClawPage() {
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+      {/* ── Scrollable messages area ── */}
+      <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto p-4">
         <div className="mx-auto max-w-2xl space-y-4">
+          {/* Sentinel for infinite scroll-up */}
+          <div ref={sentinelRef} className="h-px" />
+
+          {isLoadingMore && (
+            <p className="text-center font-mono text-xs text-gray-500 animate-pulse">
+              Loading older messages…
+            </p>
+          )}
+
           {messages.length === 0 && connectionStatus === "connected" && (
             <p className="font-mono text-sm text-gray-500">
               Say something to your Claw…
@@ -378,9 +528,13 @@ export default function ClawPage() {
               </div>
             </div>
           ))}
+
+          {/* Anchor for auto-scroll to bottom */}
+          <div ref={messagesEndRef} />
         </div>
       </div>
 
+      {/* ── Input bar ── */}
       <div className="shrink-0 border-t border-[var(--pixel-border)] bg-[var(--surface)] p-4">
         <div className="mx-auto flex max-w-2xl gap-2">
           <input
