@@ -2,7 +2,8 @@
   "gateway": {
     "mode": "local",
     "auth": {
-      "mode": "none"
+      "mode": "token",
+      "token": "sentrix-bridge-token"
     }
   }
 }

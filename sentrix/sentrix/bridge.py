@@ -249,11 +249,14 @@ async def _proxy_connection(
                             "minProtocol": 3,
                             "maxProtocol": 3,
                             "client": {
-                                "id": "webchat-ui",
-                                "displayName": "Sentrix Claw",
+                                "id": "gateway-client",
+                                "displayName": "Sentrix Bridge",
                                 "version": "1.0.0",
-                                "platform": "web",
-                                "mode": "webchat",
+                                "platform": "python",
+                                "mode": "backend",
+                            },
+                            "auth": {
+                                "token": "sentrix-bridge-token",
                             },
                             "role": "operator",
                             "scopes": [],
