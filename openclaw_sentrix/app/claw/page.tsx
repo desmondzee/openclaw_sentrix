@@ -448,7 +448,7 @@ export default function ClawPage() {
           <button
             type="button"
             onClick={() => setIsClearModalOpen(true)}
-            className="rounded border border-red-500/50 bg-red-500/10 px-2 py-1 font-mono text-xs text-red-500 hover:bg-red-500/20"
+            className="cursor-pointer rounded border border-red-500/50 bg-red-500/10 px-2 py-1 font-mono text-xs text-red-500 hover:bg-red-500/20"
           >
             Clear Chat
           </button>
@@ -591,7 +591,7 @@ export default function ClawPage() {
             type="button"
             onClick={sendMessage}
             disabled={connectionStatus !== "connected" || !inputValue.trim()}
-            className="rounded bg-[var(--accent)] px-4 py-2 font-[family-name:var(--font-pixel)] text-sm font-bold text-white hover:bg-[var(--accent-dim)] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="cursor-pointer rounded bg-[var(--accent)] px-4 py-2 font-[family-name:var(--font-pixel)] text-sm font-bold text-white hover:bg-[var(--accent-dim)] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Send
           </button>
@@ -612,14 +612,14 @@ export default function ClawPage() {
               <button
                 type="button"
                 onClick={() => setIsClearModalOpen(false)}
-                className="rounded border border-[var(--pixel-border)] px-4 py-2 font-mono text-sm text-[var(--foreground)] hover:bg-[var(--background)]"
+                className="cursor-pointer rounded border border-[var(--pixel-border)] px-4 py-2 font-mono text-sm text-[var(--foreground)] hover:bg-[var(--background)]"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleClearChat}
-                className="rounded bg-red-500 px-4 py-2 font-mono text-sm font-bold text-white hover:bg-red-600"
+                className="cursor-pointer rounded bg-red-500 px-4 py-2 font-mono text-sm font-bold text-white hover:bg-red-600"
               >
                 Clear
               </button>
