@@ -127,6 +127,7 @@ export default function ClawPage() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   /** Tracks smallest dbKey in current message list, for pagination cursor */
   const oldestKeyRef = useRef<number | undefined>(undefined);
 
@@ -394,6 +395,11 @@ export default function ClawPage() {
     setMessages((prev) => [...prev, { id, role: "user", text }]);
     setInputValue("");
 
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+
     // Persist user message to IndexedDB
     saveMessage({
       id,
@@ -490,7 +496,7 @@ export default function ClawPage() {
       )}
 
       {/* ── Scrollable messages area ── */}
-      <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto p-4">
+      <div ref={scrollContainerRef} data-lenis-prevent className="min-h-0 flex-1 overflow-y-auto p-4">
         <div className="mx-auto max-w-2xl space-y-4">
           {/* Sentinel for infinite scroll-up */}
           <div ref={sentinelRef} className="h-px" />
@@ -536,15 +542,28 @@ export default function ClawPage() {
 
       {/* ── Input bar ── */}
       <div className="shrink-0 border-t border-[var(--pixel-border)] bg-[var(--surface)] p-4">
-        <div className="mx-auto flex max-w-2xl gap-2">
-          <input
-            type="text"
+        <div className="mx-auto flex max-w-2xl items-end gap-2">
+          <textarea
+            ref={textareaRef}
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
+            onChange={(e) => {
+              setInputValue(e.target.value);
+              // Auto-resize
+              const el = e.target;
+              el.style.height = "auto";
+              el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+              }
+            }}
             placeholder="Type a message…"
             disabled={connectionStatus !== "connected"}
-            className="flex-1 rounded border border-[var(--pixel-border)] bg-[var(--background)] px-3 py-2 font-mono text-sm text-[var(--foreground)] placeholder:text-gray-500 focus:border-[var(--accent)] focus:outline-none disabled:opacity-50"
+            rows={1}
+            className="flex-1 resize-none rounded border border-[var(--pixel-border)] bg-[var(--background)] px-3 py-2 font-mono text-sm text-[var(--foreground)] placeholder:text-gray-500 focus:border-[var(--accent)] focus:outline-none disabled:opacity-50"
+            style={{ maxHeight: 160 }}
           />
           <button
             type="button"
