@@ -26,7 +26,8 @@ RUN mkdir -p /data/agent_logs /opt/sentrix && \
 COPY collect_logs.py /opt/sentrix/collect_logs.py
 COPY entrypoint.sh  /opt/sentrix/entrypoint.sh
 COPY openclaw.json  /opt/sentrix/openclaw.json
-RUN chmod +x /opt/sentrix/entrypoint.sh /opt/sentrix/collect_logs.py
+COPY init_auth.py   /opt/sentrix/init_auth.py
+RUN chmod +x /opt/sentrix/entrypoint.sh /opt/sentrix/collect_logs.py /opt/sentrix/init_auth.py
 
 USER node
 WORKDIR /home/node

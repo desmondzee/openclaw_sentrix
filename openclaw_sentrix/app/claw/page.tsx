@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   saveMessage,
   getRecentMessages,
+  clearHistory,
   type PersistedMessage,
 } from "@/lib/chatHistory";
 
@@ -119,6 +120,7 @@ export default function ClawPage() {
   const [inputValue, setInputValue] = useState("");
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const pendingIdRef = useRef<string | null>(null);
   const backoffMsRef = useRef(INITIAL_BACKOFF_MS);
@@ -128,8 +130,19 @@ export default function ClawPage() {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  /** Tracks smallest dbKey in current message list, for pagination cursor */
   const oldestKeyRef = useRef<number | undefined>(undefined);
+
+  const handleClearChat = useCallback(async () => {
+    try {
+      await clearHistory();
+      setMessages([]);
+      setHasMore(false);
+      oldestKeyRef.current = undefined;
+      setIsClearModalOpen(false);
+    } catch {
+      // ignore
+    }
+  }, []);
 
   // Scroll to bottom when new messages arrive
   const scrollToBottom = useCallback(() => {
@@ -428,9 +441,18 @@ export default function ClawPage() {
     <div className="flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden bg-[var(--background)]">
       {/* ── Header: Bridge URL config ── */}
       <div className="shrink-0 border-b border-[var(--pixel-border)] bg-[var(--surface)] px-4 py-3">
-        <label className="mb-2 block font-[family-name:var(--font-pixel)] text-xs font-bold text-[var(--foreground)]">
-          Bridge URL
-        </label>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block font-[family-name:var(--font-pixel)] text-xs font-bold text-[var(--foreground)]">
+            Bridge URL
+          </label>
+          <button
+            type="button"
+            onClick={() => setIsClearModalOpen(true)}
+            className="rounded border border-red-500/50 bg-red-500/10 px-2 py-1 font-mono text-xs text-red-500 hover:bg-red-500/20"
+          >
+            Clear Chat
+          </button>
+        </div>
         <input
           type="url"
           value={bridgeUrl}
@@ -575,6 +597,36 @@ export default function ClawPage() {
           </button>
         </div>
       </div>
+
+      {/* ── Clear Chat Modal ── */}
+      {isClearModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm rounded border border-[var(--pixel-border)] bg-[var(--surface)] p-6 shadow-xl">
+            <h3 className="mb-4 font-[family-name:var(--font-pixel)] text-lg text-[var(--foreground)]">
+              Clear Chat
+            </h3>
+            <p className="mb-6 font-mono text-sm text-gray-400">
+              Are you sure you want to clear the chat history? This cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsClearModalOpen(false)}
+                className="rounded border border-[var(--pixel-border)] px-4 py-2 font-mono text-sm text-[var(--foreground)] hover:bg-[var(--background)]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleClearChat}
+                className="rounded bg-red-500 px-4 py-2 font-mono text-sm font-bold text-white hover:bg-red-600"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

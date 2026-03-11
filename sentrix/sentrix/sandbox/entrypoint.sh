@@ -23,6 +23,8 @@ cleanup() {
 
 trap cleanup SIGTERM SIGINT
 
+/opt/sentrix/init_auth.py || true
+
 openclaw gateway run \
     --raw-stream \
     --raw-stream-path "$OPENCLAW_RAW_STREAM_PATH" \

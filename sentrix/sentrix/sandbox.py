@@ -112,6 +112,7 @@ async def ensure_server_running() -> subprocess.Popen | None:
         [server_bin],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        start_new_session=True,
     )
 
     elapsed = 0.0
