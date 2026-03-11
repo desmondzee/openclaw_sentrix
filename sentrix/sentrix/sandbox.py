@@ -189,8 +189,48 @@ async def _inject_channel_config(sandbox: Sandbox, channels: list[str]) -> None:
     result = await sandbox.commands.run(f"node -e {repr(script)}")
     exit_code = getattr(result, "exit_code", 0)
     if exit_code != 0:
+        stderr_text = ""
+        stdout_text = ""
+        if hasattr(result, "logs"):
+            if result.logs.stderr:
+                stderr_text = "\n".join(
+                    getattr(m, "text", str(m)) for m in result.logs.stderr
+                )
+            if result.logs.stdout:
+                stdout_text = "\n".join(
+                    getattr(m, "text", str(m)) for m in result.logs.stdout
+                )
         print(
             f"[sentrix] warning: failed to inject channel config (exit {exit_code})",
+            file=sys.stderr,
+        )
+        if stderr_text.strip():
+            print(f"  stderr: {stderr_text.strip()}", file=sys.stderr)
+        if stdout_text.strip():
+            print(f"  stdout: {stdout_text.strip()}", file=sys.stderr)
+
+
+async def _verify_channel_config(sandbox: Sandbox, channels: list[str]) -> None:
+    """Read back openclaw.json and confirm requested channels are present."""
+    config_path = "/home/node/.openclaw/openclaw.json"
+    result = await sandbox.commands.run(f"cat {config_path}")
+    raw = ""
+    if hasattr(result, "logs") and result.logs.stdout:
+        raw = "\n".join(getattr(m, "text", str(m)) for m in result.logs.stdout)
+    try:
+        cfg = json.loads(raw)
+        configured = set(cfg.get("channels", {}).keys())
+        for ch in channels:
+            if ch in configured:
+                print(f"[sentrix] ✓ channel '{ch}' present in sandbox config")
+            else:
+                print(
+                    f"[sentrix] ✗ channel '{ch}' missing from sandbox config — login may fail",
+                    file=sys.stderr,
+                )
+    except (json.JSONDecodeError, AttributeError):
+        print(
+            f"[sentrix] warning: could not read sandbox openclaw.json for verification",
             file=sys.stderr,
         )
 
@@ -198,18 +238,33 @@ async def _inject_channel_config(sandbox: Sandbox, channels: list[str]) -> None:
 async def _run_channel_logins(sandbox: Sandbox, channels: list[str]) -> None:
     """Run `openclaw channels login` for each interactive channel, streaming output."""
     await _inject_channel_config(sandbox, channels)
+    await _verify_channel_config(sandbox, channels)
+
+    # Detect host terminal width so the QR code renders at the correct size
+    import shutil
+    host_columns = shutil.get_terminal_size().columns
+
     for ch in channels:
         print(f"\n[sentrix] linking {ch} (scan QR code when it appears)...")
 
         async def _on_stdout(msg: object) -> None:
             text = getattr(msg, "text", str(msg))
+            # Ensure each message ends with a newline so QR code lines
+            # don't get concatenated into one unbroken string.
+            if not text.endswith("\n"):
+                text += "\n"
             print(text, end="", flush=True)
 
         async def _on_stderr(msg: object) -> None:
             text = getattr(msg, "text", str(msg))
+            if not text.endswith("\n"):
+                text += "\n"
             print(text, end="", flush=True)
 
+        # Set COLUMNS + TERM so the QR code library knows the terminal width
+        # and renders the QR at the correct, scannable size.
         result = await sandbox.commands.run(
+            f"COLUMNS={host_columns} TERM=xterm-256color "
             f"openclaw channels login --channel {ch}",
             handlers=ExecutionHandlers(
                 on_stdout=_on_stdout,

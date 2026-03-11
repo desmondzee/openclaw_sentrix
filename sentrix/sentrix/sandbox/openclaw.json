@@ -1,0 +1,15 @@
+{
+  "gateway": {
+    "mode": "local",
+    "auth": {
+      "mode": "token",
+      "token": "sentrix-bridge-token"
+    }
+  },
+  "channels": {
+    "whatsapp": {
+      "dmPolicy": "pairing",
+      "allowFrom": []
+    }
+  }
+}

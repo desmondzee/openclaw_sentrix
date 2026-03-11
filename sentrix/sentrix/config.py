@@ -67,7 +67,7 @@ class SentrixConfig:
     @property
     def dockerfile_dir(self) -> Path:
         """Path to the sandbox/ directory containing Dockerfile and scripts."""
-        return Path(__file__).resolve().parent.parent / "sandbox"
+        return Path(__file__).resolve().parent / "sandbox"
 
 
 def resolve_opensandbox_server() -> str:

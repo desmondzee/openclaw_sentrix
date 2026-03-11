@@ -282,10 +282,41 @@ def _step_channels() -> tuple[dict[str, str], list[str]]:
     return env, interactive
 
 
-def _step_patrol() -> tuple[bool, str | None]:
-    """Step 5: Patrol swarm and escalation. Returns (patrol_enabled, escalation_level)."""
+def _step_web_search() -> dict[str, str]:
+    """Step 5: Web search / tool API keys. Returns env vars."""
     console.print()
-    console.print("[bold]Step 5:[/bold] Patrol & investigator")
+    console.print("[bold]Step 5:[/bold] Web Search (optional)")
+    console.print(
+        "  [dim]A Brave Search API key lets the agent search the web.\n"
+        "  Free tier: 2,000 queries/month → https://brave.com/search/api/[/dim]"
+    )
+
+    env: dict[str, str] = {}
+
+    existing = os.environ.get("BRAVE_API_KEY")
+    if existing:
+        console.print(f"  [green]BRAVE_API_KEY detected in environment.[/green]")
+        if _confirm("Use detected BRAVE_API_KEY?", default=True):
+            env["BRAVE_API_KEY"] = existing
+            return env
+
+    if _confirm("Configure Brave Search API key?", default=False):
+        key = _password("  BRAVE_API_KEY:")
+        if key:
+            env["BRAVE_API_KEY"] = key
+            console.print("  [green]Brave Search configured.[/green]")
+        else:
+            console.print("  [yellow]Skipped (empty key).[/yellow]")
+    else:
+        console.print("  [dim]Skipped — web search will not be available.[/dim]")
+
+    return env
+
+
+def _step_patrol() -> tuple[bool, str | None]:
+    """Step 6: Patrol swarm and escalation. Returns (patrol_enabled, escalation_level)."""
+    console.print()
+    console.print("[bold]Step 6:[/bold] Patrol & investigator")
     console.print("  [dim]Patrol reviews agent logs and flags suspicious content. The investigator writes a report for selected flags.[/dim]")
 
     patrol_enabled = _confirm("Enable patrol swarm? (reviews logs, writes to patrol_flags.jsonl)", default=False)
@@ -301,9 +332,9 @@ def _step_patrol() -> tuple[bool, str | None]:
 
 
 def _step_security() -> dict[str, str]:
-    """Step 6: Security confirmation. Returns env vars for security config."""
+    """Step 7: Security confirmation. Returns env vars for security config."""
     console.print()
-    console.print("[bold]Step 6:[/bold] Security")
+    console.print("[bold]Step 7:[/bold] Security")
     console.print(Panel(
         "[bold]Sentrix applies these secure defaults:[/bold]\n\n"
         "  * Shell/command execution: [red]denied[/red]\n"
@@ -351,10 +382,13 @@ def run_setup_wizard() -> tuple[dict[str, str], list[str], bool, str | None]:
     # Step 4: Channels
     channel_env, interactive_channels = _step_channels()
 
-    # Step 5: Patrol & escalation
+    # Step 5: Web search
+    web_search_env = _step_web_search()
+
+    # Step 6: Patrol & escalation
     patrol_enabled, escalation_level = _step_patrol()
 
-    # Step 6: Security
+    # Step 7: Security
     security_env = _step_security()
 
     # Summary
@@ -383,6 +417,7 @@ def run_setup_wizard() -> tuple[dict[str, str], list[str], bool, str | None]:
         elif ch["id"] in interactive_channels:
             all_ch_names.append(ch["name"])
     summary.add_row("Channels", ", ".join(all_ch_names) if all_ch_names else "None (configure later)")
+    summary.add_row("Web Search", "Brave (configured)" if "BRAVE_API_KEY" in web_search_env else "Not configured")
     summary.add_row("Patrol", "Yes" if patrol_enabled else "No")
     if patrol_enabled and escalation_level:
         esc_label = {"low_above": "Low and above", "medium_above": "Medium and above", "high_only": "High only"}.get(escalation_level, escalation_level)
@@ -404,6 +439,7 @@ def run_setup_wizard() -> tuple[dict[str, str], list[str], bool, str | None]:
         env["OPENCLAW_REASONING"] = "on"
 
     env.update(channel_env)
+    env.update(web_search_env)
     env.update(security_env)
 
     return env, interactive_channels, patrol_enabled, escalation_level
