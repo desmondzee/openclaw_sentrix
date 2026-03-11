@@ -1,3 +1,3 @@
-"""Sentrix – Sandboxed OpenClaw with API log capture."""
+"""Sentrix – Agentic police for OpenClaw."""
 
-__version__ = "0.1.0"
+__version__ = "0.1.3"

@@ -68,11 +68,41 @@ async def _server_is_healthy() -> bool:
         return False
 
 
+def _check_docker() -> None:
+    """Pre-flight check: verify Docker is installed and the daemon is running."""
+    docker_bin = shutil.which("docker")
+    if not docker_bin:
+        print(
+            "[sentrix] ✗ Docker not found.\n"
+            "  Sentrix requires Docker to run sandboxed containers.\n"
+            "  Install Docker Desktop: https://docs.docker.com/get-docker/",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
+    result = subprocess.run(
+        [docker_bin, "info"],
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        print(
+            "[sentrix] ✗ Docker is installed but the daemon is not running.\n"
+            "  Start Docker Desktop (or `dockerd`) and try again.\n"
+            "  Verify with: docker info",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
+
 async def ensure_server_running() -> subprocess.Popen | None:
     """Start opensandbox-server in the background if not already running."""
     if await _server_is_healthy():
         print("[sentrix] opensandbox-server already running.")
         return None
+
+    # Pre-flight: Docker must be running before we start opensandbox-server
+    _check_docker()
 
     server_bin = _find_server_bin()
     _init_server_config(server_bin)
@@ -88,9 +118,18 @@ async def ensure_server_running() -> subprocess.Popen | None:
     while elapsed < SERVER_READY_TIMEOUT:
         if server_proc.poll() is not None:
             stderr = server_proc.stderr.read().decode() if server_proc.stderr else ""
-            print(f"[sentrix] opensandbox-server exited unexpectedly (code {server_proc.returncode})", file=sys.stderr)
-            if stderr.strip():
-                print(f"  {stderr.strip()}", file=sys.stderr)
+            # Detect Docker connection errors and give a clear message
+            if "Connection refused" in stderr or "DockerException" in stderr:
+                print(
+                    "[sentrix] ✗ opensandbox-server failed to connect to Docker.\n"
+                    "  Make sure Docker Desktop is running and try again.\n"
+                    "  Verify with: docker info",
+                    file=sys.stderr,
+                )
+            else:
+                print(f"[sentrix] opensandbox-server exited unexpectedly (code {server_proc.returncode})", file=sys.stderr)
+                if stderr.strip():
+                    print(f"  {stderr.strip()}", file=sys.stderr)
             raise SystemExit(1)
 
         if await _server_is_healthy():

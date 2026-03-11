@@ -1,4 +1,4 @@
-"""Sentrix CLI – sandboxed OpenClaw with API log capture."""
+"""Sentrix CLI – agentic police for OpenClaw."""
 
 from __future__ import annotations
 

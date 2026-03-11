@@ -34,26 +34,26 @@ PROVIDERS = [
 MODELS_BY_PROVIDER: dict[str, list[dict[str, str]]] = {
     "anthropic": [
         {"id": "anthropic/claude-sonnet-4-6", "name": "Claude Sonnet 4.6 (recommended)"},
-        {"id": "anthropic/claude-opus-4-6", "name": "Claude 4.6 Opus"},
-        {"id": "anthropic/claude-haiku-4-5-20251001", "name": "Claude 4.5 Haiku (fast)"},
+        {"id": "anthropic/claude-opus-4-6", "name": "Claude Opus 4.6"},
+        {"id": "anthropic/claude-haiku-4-5", "name": "Claude Haiku 4.5 (fast)"},
     ],
     "openai": [
-        {"id": "openai/gpt-4.1", "name": "GPT-4.1 (recommended)"},
-        {"id": "openai/o3", "name": "o3 (reasoning)"},
-        {"id": "openai/o4-mini", "name": "o4-mini (fast reasoning)"},
-        {"id": "openai/gpt-4.1-mini", "name": "GPT-4.1 Mini (fast)"},
+        {"id": "openai/gpt-5.4", "name": "GPT-5.4 (recommended)"},
+        {"id": "openai/gpt-5-mini-2025-08-07", "name": "GPT-5 Mini (fast)"},
+        {"id": "openai/gpt-5-nano-2025-08-07", "name": "GPT-5 Nano (fastest)"},
     ],
     "google": [
-        {"id": "google/gemini-2.5-pro", "name": "Gemini 2.5 Pro (recommended)"},
-        {"id": "google/gemini-2.5-flash", "name": "Gemini 2.5 Flash (fast)"},
+        {"id": "google/gemini-3.1-pro-preview", "name": "Gemini 3.1 Pro (recommended)"},
+        {"id": "google/gemini-3-flash-preview", "name": "Gemini 3 Flash (fast)"},
+        {"id": "google/gemini-3.1-flash-lite-preview", "name": "Gemini 3.1 Flash Lite (fastest)"},
     ],
     "openrouter": [
         {"id": "anthropic/claude-sonnet-4-6", "name": "Claude Sonnet 4.6 via OpenRouter"},
-        {"id": "openai/gpt-4.1", "name": "GPT-4.1 via OpenRouter"},
-        {"id": "google/gemini-2.5-pro", "name": "Gemini 2.5 Pro via OpenRouter"},
+        {"id": "openai/gpt-5.4", "name": "GPT-5.4 via OpenRouter"},
+        {"id": "google/gemini-3.1-pro-preview", "name": "Gemini 3.1 Pro via OpenRouter"},
     ],
     "xai": [
-        {"id": "xai/grok-3", "name": "Grok 3"},
+        {"id": "xai/grok-4-1-fast-reasoning", "name": "Grok 4.1 Fast Reasoning (recommended)"},
         {"id": "xai/grok-3-mini", "name": "Grok 3 Mini (fast)"},
     ],
     "mistral": [
