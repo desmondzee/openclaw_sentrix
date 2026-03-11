@@ -275,6 +275,18 @@ async def connect_sandbox(sandbox_id: str) -> Sandbox:
     )
 
 
+async def get_direct_endpoint(sandbox: Sandbox, port: int) -> str:
+    """Get direct endpoint URL bypassing opensandbox-server proxy.
+
+    The server proxy doesn't support WebSocket upgrade (OpenSandbox #383),
+    so WebSocket connections must use the direct Docker-mapped endpoint.
+    """
+    endpoint = await sandbox._sandbox_service.get_sandbox_endpoint(
+        sandbox.id, port, use_server_proxy=False
+    )
+    return endpoint.endpoint
+
+
 async def run_agent_in_sandbox(
     sandbox: Sandbox,
     message: str | None = None,

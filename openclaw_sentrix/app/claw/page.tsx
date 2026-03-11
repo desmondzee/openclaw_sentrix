@@ -139,15 +139,46 @@ export default function ClawPage() {
           const msg = JSON.parse(event.data as string) as {
             type?: string;
             id?: string;
-            payload?: { text?: string };
+            payload?: { text?: string; accumulated?: string; status?: string };
           };
+
+          if (msg.type === "bridge.ready") {
+            // Gateway handshake complete — bridge is fully connected
+            if (typeof window !== "undefined") {
+              console.log("[Claw] Bridge ready, gateway connected");
+            }
+            return;
+          }
+
+          if (msg.type === "response.delta" && msg.payload?.accumulated != null) {
+            // Streaming delta — update or create the assistant message with accumulated text
+            const id = msg.id ?? `r-${Date.now()}`;
+            setMessages((prev) => {
+              const existing = prev.findIndex((m) => m.id === id && m.role === "assistant");
+              if (existing >= 0) {
+                const updated = [...prev];
+                updated[existing] = { ...updated[existing], text: msg.payload!.accumulated! };
+                return updated;
+              }
+              return [...prev, { id, role: "assistant", text: msg.payload!.accumulated! }];
+            });
+            return;
+          }
+
           if (msg.type === "response" && msg.payload?.text != null) {
             const id = msg.id ?? `r-${Date.now()}`;
-            setMessages((prev) => [
-              ...prev,
-              { id, role: "assistant", text: msg.payload!.text! },
-            ]);
+            setMessages((prev) => {
+              // Replace streaming message with final, or add new
+              const existing = prev.findIndex((m) => m.id === id && m.role === "assistant");
+              if (existing >= 0) {
+                const updated = [...prev];
+                updated[existing] = { ...updated[existing], text: msg.payload!.text! };
+                return updated;
+              }
+              return [...prev, { id, role: "assistant", text: msg.payload!.text! }];
+            });
             if (pendingIdRef.current === id) pendingIdRef.current = null;
+            return;
           }
         } catch {
           // ignore parse errors

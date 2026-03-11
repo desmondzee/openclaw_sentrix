@@ -1,5 +1,8 @@
 {
   "gateway": {
-    "mode": "local"
+    "mode": "local",
+    "auth": {
+      "mode": "none"
+    }
   }
 }

@@ -237,7 +237,7 @@ def bridge_debug(log_dir: str) -> None:
     """Print gateway WebSocket URL and test connection (run while 'sentrix run' is up)."""
     import asyncio
     from sentrix.config import GATEWAY_PORT
-    from sentrix.sandbox import connect_sandbox, read_sandbox_id
+    from sentrix.sandbox import connect_sandbox, get_direct_endpoint, read_sandbox_id
 
     path = Path(log_dir)
     sandbox_id = read_sandbox_id(path)
@@ -247,16 +247,38 @@ def bridge_debug(log_dir: str) -> None:
 
     async def _run() -> None:
         sandbox = await connect_sandbox(sandbox_id)
-        endpoint_info = await sandbox.get_endpoint(GATEWAY_PORT)
-        raw = getattr(endpoint_info, "endpoint", str(endpoint_info))
-        gateway_ws_url = f"ws://{raw}" if not raw.startswith("ws") else raw
-        console.print("[dim]Gateway WebSocket URL:[/dim] [bold]%s[/bold]", gateway_ws_url)
+        # Use direct endpoint to bypass opensandbox-server proxy (no WS support; OpenSandbox #383)
+        raw = (await get_direct_endpoint(sandbox, GATEWAY_PORT)).strip().rstrip("/")
+        if raw.startswith("https://"):
+            gateway_ws_url = "wss://" + raw[8:]
+        elif raw.startswith("http://"):
+            gateway_ws_url = "ws://" + raw[7:]
+        elif raw.startswith("ws://") or raw.startswith("wss://"):
+            gateway_ws_url = raw
+        else:
+            gateway_ws_url = "ws://" + raw
+        console.print(f"[dim]Gateway WebSocket URL:[/dim] [bold]{gateway_ws_url}[/bold]")
         try:
             import websockets
-            async with websockets.connect(gateway_ws_url, close_timeout=5) as ws:
-                console.print("[green]Gateway WebSocket connected successfully.[/green]")
+            from websockets.exceptions import InvalidStatus, InvalidURI
+            url_to_try = gateway_ws_url
+            for attempt in range(2):
+                try:
+                    async with websockets.connect(url_to_try, close_timeout=5) as ws:
+                        console.print("[green]Gateway WebSocket connected successfully.[/green]")
+                    break
+                except InvalidURI as e:
+                    if attempt == 0 and getattr(e, "uri", "").startswith("http"):
+                        url_to_try = e.uri.replace("https://", "wss://").replace("http://", "ws://")
+                        console.print(f"[dim]Redirect to http; retrying with {url_to_try}[/dim]")
+                        continue
+                    raise
+                except InvalidStatus as e:
+                    body = getattr(getattr(e, "response", None), "body", b"") or b""
+                    console.print(f"[red]HTTP {getattr(e.response, 'status_code', None)}:[/red] {(body[:200].decode('utf-8', errors='replace') if isinstance(body, bytes) else body)}")
+                    raise
         except Exception as e:
-            console.print("[red]Gateway WebSocket connection failed: %s[/red]", e)
+            console.print(f"[red]Gateway WebSocket connection failed: {e}[/red]")
 
     asyncio.run(_run())
 
