@@ -57,8 +57,8 @@ export function usePatrolFlagNotifications(
       id: (f.flag_id as string) || (f.id as string) || `flag-${Date.now()}`,
       agentId: (f.target_agent_id as string) || (f.agentId as string) || "",
       agentName: (f.agent_name as string) || (f.agentName as string),
-      message: (f.message as string) || (f.message as string),
-      severity: (f.severity as string) || "warning",
+      message: (f.referral_summary as string) || (f.message as string) || "Patrol flag raised",
+      severity: (f.severity as string) || (f.consensus_severity as string)?.toLowerCase() || "warning",
       timestamp: (f.timestamp as string) || new Date().toISOString(),
     }));
 

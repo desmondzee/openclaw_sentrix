@@ -35,7 +35,14 @@ PROVIDERS = {
 }
 
 # Model provider configurations per OpenClaw docs (openai, moonshot, minimax).
-# Moonshot: use api.moonshot.ai/v1 for international keys; api.moonshot.cn/v1 gives 401 for those.
+# Moonshot: https://docs.openclaw.ai/providers/moonshot — international keys use api.moonshot.ai/v1 only.
+MOONSHOT_MODELS = [
+    {"id": "kimi-k2.5", "name": "Kimi K2.5", "reasoning": False, "contextWindow": 256000, "maxTokens": 8192},
+    {"id": "kimi-k2-0905-preview", "name": "Kimi K2 0905 Preview", "reasoning": False, "contextWindow": 256000, "maxTokens": 8192},
+    {"id": "kimi-k2-turbo-preview", "name": "Kimi K2 Turbo", "reasoning": False, "contextWindow": 256000, "maxTokens": 8192},
+    {"id": "kimi-k2-thinking", "name": "Kimi K2 Thinking", "reasoning": True, "contextWindow": 256000, "maxTokens": 8192},
+    {"id": "kimi-k2-thinking-turbo", "name": "Kimi K2 Thinking Turbo", "reasoning": True, "contextWindow": 256000, "maxTokens": 8192},
+]
 MODEL_PROVIDER_CONFIG = {
     "minimax": {
         "baseUrl": "https://api.minimax.io/anthropic",
@@ -48,10 +55,7 @@ MODEL_PROVIDER_CONFIG = {
     "moonshot": {
         "baseUrl": "https://api.moonshot.ai/v1",
         "api": "openai-completions",
-        "models": [
-            {"id": "kimi-k2.5", "name": "Kimi K2.5", "reasoning": False, "contextWindow": 256000, "maxTokens": 8192},
-            {"id": "kimi-k2-thinking", "name": "Kimi K2 Thinking", "reasoning": True, "contextWindow": 256000, "maxTokens": 8192},
-        ],
+        "models": MOONSHOT_MODELS,
     },
 }
 
@@ -137,7 +141,9 @@ def main():
     if config_data["env"]:
         print(f"[sentrix/init_auth] Set config env for: {list(config_data['env'].keys())}")
 
-    # Add model provider configurations for providers that need them (Moonshot, Minimax per docs)
+    # Add model provider configurations for providers that need them (Moonshot, Minimax per docs).
+    # Write literal apiKey into the provider so OpenClaw has the key even if env substitution
+    # or auth-profile resolution fails; per https://docs.openclaw.ai/providers/moonshot
     for provider_id in providers_configured:
         if provider_id in MODEL_PROVIDER_CONFIG:
             model_config = MODEL_PROVIDER_CONFIG[provider_id]
@@ -148,14 +154,21 @@ def main():
             else:
                 env_key = f"{provider_id.upper().replace('-', '_')}_API_KEY"
 
+            raw_key = os.environ.get(env_key)
+            key_val = _normalize_api_key(raw_key) if raw_key else ""
+            # Prefer literal key so provider config is self-contained and 401 from substitution is impossible
+            api_key_value = key_val if key_val else f"${{{env_key}}}"
+
             config_data.setdefault("models", {}).setdefault("mode", "merge")
             config_data["models"].setdefault("providers", {})[provider_id] = {
                 "baseUrl": model_config["baseUrl"],
                 "api": model_config["api"],
-                "apiKey": f"${{{env_key}}}",
+                "apiKey": api_key_value,
                 "models": model_config["models"],
             }
             print(f"[sentrix/init_auth] Added model provider config for: {provider_id}")
+            if provider_id == "moonshot" and key_val:
+                print("[sentrix/init_auth] Moonshot: key set in env, auth profile, and models.providers.moonshot.apiKey (baseUrl=api.moonshot.ai/v1). If 401 persists, verify key at platform.moonshot.ai and try: curl -s https://api.moonshot.ai/v1/models -H 'Authorization: Bearer YOUR_KEY'")
 
     # Set default model so OpenClaw uses the wizard-selected provider (path: agents.defaults.model.primary).
     # Also set agents.list with an explicit "main" entry so the default agent has the model even when

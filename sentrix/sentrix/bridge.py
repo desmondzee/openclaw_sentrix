@@ -49,7 +49,7 @@ def _read_max_subagents(log_dir: Path) -> int:
         return 3
 
 
-def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict]:
+def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> tuple[list[dict], dict[str, str]]:
     """Extract active agents from log files.
     
     This function analyzes recent log files to identify currently active agents
@@ -57,7 +57,9 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict
     'agent:main:main' for main agent, 'agent:main:subagent:uuid' for subagents).
     Multiple runIds can belong to the same sessionKey.
     
-    Returns one main agent and up to max_subagents subagents.
+    Returns:
+        - List of agent dictionaries
+        - Mapping of log file names to agent IDs (for flag correlation)
     """
     json_files = [
         f
@@ -67,7 +69,7 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict
         and not f.name.startswith(".")
     ]
     if not json_files:
-        return []
+        return [], {}, {}
     
     # Only use the most recent log file to avoid stale data from previous sessions
     json_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
@@ -78,7 +80,9 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict
     subagent_cutoff_time = (datetime.now(timezone.utc) - timedelta(minutes=5)).timestamp() * 1000
     
     # Collect all sessionKeys with their latest activity and a sample runId
-    session_activity: dict[str, dict] = {}  # sessionKey -> {last_ts, run_id, is_subagent}
+    session_activity: dict[str, dict] = {}  # sessionKey -> {last_ts, run_id, is_subagent, log_file}
+    # Track which log file each agent ID belongs to (for flag correlation)
+    log_file_to_agent: dict[str, str] = {}  # log_file_name -> agent_id
     
     now_ts = datetime.now(timezone.utc).timestamp() * 1000
     
@@ -156,10 +160,11 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict
                     "run_id": run_id if isinstance(run_id, str) else key,
                     "is_subagent": is_subagent,
                     "is_runid_fallback": is_runid_fallback and not is_subagent,
+                    "log_file": log_file.name,
                 }
     
     if not session_activity:
-        return []
+        return [], {}
     
     # Separate main agent and subagents
     main_sessions = []
@@ -181,47 +186,60 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict
     main_sessions.sort(key=lambda x: x[1]["last_ts"], reverse=True)
     subagent_sessions.sort(key=lambda x: x[1]["last_ts"], reverse=True)
     
-    # Build agents list
+    # Build agents list and log file mapping
     agents: list[dict] = []
     
     # Add main agent (most recent non-subagent session)
     if main_sessions:
         session_key, data = main_sessions[0]
+        agent_id = data["run_id"]
         agents.append({
-            "id": data["run_id"],
+            "id": agent_id,
             "name": "Main Agent",
             "role": "primary",
             "status": "working",
             "riskScore": "normal",
             "sessionKey": session_key,
         })
+        # Map the log file to this agent ID for flag correlation
+        if data.get("log_file"):
+            log_file_to_agent[data["log_file"]] = agent_id
     
     # Only add subagents if we have real sessionKeys (not just runId fallbacks)
     # Without sessionKey, we cannot distinguish subagents from different runs of the same agent
     if has_real_session_keys:
         logger.debug(f"[get_agents] has_real_session_keys=True, adding {len(subagent_sessions[:max_subagents])} subagents")
         for i, (session_key, data) in enumerate(subagent_sessions[:max_subagents]):
+            agent_id = data["run_id"]
             agents.append({
-                "id": data["run_id"],
+                "id": agent_id,
                 "name": f"Subagent-{i + 1}",
                 "role": "subagent",
                 "status": "working",
                 "riskScore": "normal",
                 "sessionKey": session_key,
             })
+            # Map the log file to this agent ID for flag correlation
+            if data.get("log_file"):
+                log_file_to_agent[data["log_file"]] = agent_id
     else:
         logger.debug(f"[get_agents] has_real_session_keys=False, main_sessions={len(main_sessions)}, subagent_sessions={len(subagent_sessions)}")
     
     logger.debug(f"[get_agents] Returning {len(agents)} agents: {[a['name'] for a in agents]}")
-    return agents
+    logger.debug(f"[get_agents] Log file mapping: {log_file_to_agent}")
+    return agents, log_file_to_agent
 
 
-def _get_flags_from_log_dir(log_dir: Path) -> list[dict]:
-    """Read patrol_flags.jsonl (line-delimited JSON). Returns list of flag objects."""
+def _get_flags_from_log_dir(log_dir: Path, log_file_to_agent: dict[str, str] | None = None) -> list[dict]:
+    """Read patrol_flags.jsonl (line-delimited JSON). Returns list of flag objects.
+    
+    If log_file_to_agent is provided, adds target_agent_id to each flag based on the source_file.
+    """
     path = log_dir / PATROL_FLAGS_FILE
     if not path.exists():
         return []
     flags: list[dict] = []
+    log_file_to_agent = log_file_to_agent or {}
     try:
         for line in path.read_text(encoding="utf-8").strip().splitlines():
             line = line.strip()
@@ -229,6 +247,13 @@ def _get_flags_from_log_dir(log_dir: Path) -> list[dict]:
                 continue
             obj = json.loads(line)
             if isinstance(obj, dict):
+                # Add target_agent_id based on source_file mapping
+                source_file = obj.get("source_file", "")
+                if source_file and source_file in log_file_to_agent:
+                    obj["target_agent_id"] = log_file_to_agent[source_file]
+                # Also set severity from consensus_severity if available
+                if "consensus_severity" in obj and "severity" not in obj:
+                    obj["severity"] = obj["consensus_severity"].lower()
                 flags.append(obj)
     except (json.JSONDecodeError, OSError):
         pass
@@ -529,11 +554,14 @@ async def _proxy_connection(
                                 # WS intercept: get_state is handled locally; do not forward to gateway
                                 if msg_type == "get_state":
                                     max_subagents = _read_max_subagents(log_dir)
-                                    agents = _get_agents_from_log_dir(log_dir, max_subagents)
-                                    flags = _get_flags_from_log_dir(log_dir)
+                                    agents, log_file_to_agent = _get_agents_from_log_dir(log_dir, max_subagents)
+                                    flags = _get_flags_from_log_dir(log_dir, log_file_to_agent)
                                     logger.debug(f"[get_state] Returning {len(agents)} agents, {len(flags)} flags")
                                     for a in agents:
                                         logger.debug(f"  - {a.get('name')} ({a.get('role')}): {a.get('sessionKey', 'no-session-key')[:20]}...")
+                                    # Log flag details including target_agent_id
+                                    for f in flags:
+                                        logger.debug(f"  - flag: {f.get('flag_id', 'unknown')[:8]}... target_agent={f.get('target_agent_id', 'unknown')[:8]}...")
                                     await browser_ws.send(json.dumps({
                                         "type": "state",
                                         "payload": {"agents": agents, "flags": flags},

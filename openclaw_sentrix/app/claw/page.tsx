@@ -666,8 +666,9 @@ export default function ClawPage() {
           className={`
             relative flex shrink-0 overflow-hidden border-l border-[var(--pixel-border)] bg-[var(--surface)]
             transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
-            ${showAgentPanel ? "w-1/2 min-w-[400px] opacity-100" : "w-0 min-w-0 opacity-0"}
+            ${showAgentPanel ? "flex-1 opacity-100" : "w-0 min-w-0 opacity-0"}
           `}
+          style={{ minWidth: showAgentPanel ? "500px" : "0px" }}
         >
           {/* Toggle button - always visible at the edge when panel can be shown */}
           {patrolEnabled && hasUserSentMessage && (
@@ -680,7 +681,7 @@ export default function ClawPage() {
                 bg-[var(--surface)] px-2 py-3 shadow-lg
                 transition-all duration-300 ease-out
                 hover:bg-[var(--background)] hover:scale-105
-                ${showAgentPanel ? "-left-10" : "-left-10"}
+                -left-10
               `}
               title={isPanelOpen ? "Close Agent Panel" : "Open Agent Panel"}
             >
@@ -692,10 +693,10 @@ export default function ClawPage() {
             </button>
           )}
 
-          {/* Panel content with fade animation */}
+          {/* Panel content - fills available space */}
           <div 
             className={`
-              h-full w-full min-w-[400px] shrink-0
+              h-full w-full
               transition-opacity duration-300 ease-out
               ${showAgentPanel ? "opacity-100" : "opacity-0"}
             `}
