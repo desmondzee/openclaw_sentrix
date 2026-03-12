@@ -43,6 +43,7 @@ export default function SpriteWorld({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   const prevAgentCountRef = useRef(0);
+  const initialCenterDoneRef = useRef(false);
 
   useEffect(() => {
     preloadEssentialSprites().then(() => {
@@ -51,9 +52,40 @@ export default function SpriteWorld({
     });
   }, []);
 
+  // Initial center on first load (before agents arrive)
+  useEffect(() => {
+    if (!preloaded || initialCenterDoneRef.current) return;
+    
+    const container = containerRef.current;
+    if (!container) return;
+    
+    // Small delay to ensure container has size
+    const timer = setTimeout(() => {
+      const rect = container.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+      
+      const bounds = getWorldBounds();
+      const scaleX = rect.width / bounds.width;
+      const scaleY = rect.height / bounds.height;
+      const fitScale = Math.min(scaleX, scaleY, 0.95);
+      const finalScale = Math.max(fitScale, 0.28);
+      
+      const centerX = bounds.x + bounds.width / 2;
+      const centerY = bounds.y + bounds.height / 2;
+      const panX = rect.width / 2 - centerX * finalScale;
+      const panY = rect.height / 2 - centerY * finalScale;
+      
+      setScale(finalScale);
+      setPan({ x: panX, y: panY });
+      initialCenterDoneRef.current = true;
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [preloaded]);
+
   // Auto-center view when agents change count, on first load, or when container resizes
   useEffect(() => {
-    if (!preloaded || agents.length === 0) return;
+    if (!preloaded) return;
     
     const container = containerRef.current;
     if (!container) return;
@@ -69,17 +101,13 @@ export default function SpriteWorld({
       // Get bounds that include both main room and control room
       const bounds = getWorldBounds();
       
-      // Calculate scale to fit everything with minimal padding
-      const paddingX = 20 * 3; // Minimal horizontal padding
-      const paddingY = 20 * 3; // Minimal vertical padding
-      const boundsWidth = bounds.width + paddingX * 2;
-      const boundsHeight = bounds.height + paddingY * 2;
-      const scaleX = containerWidth / boundsWidth;
-      const scaleY = containerHeight / boundsHeight;
-      const fitScale = Math.min(scaleX, scaleY, 0.9); // Cap at 90%
+      // Calculate scale to fit everything - bounds already include margins
+      const scaleX = containerWidth / bounds.width;
+      const scaleY = containerHeight / bounds.height;
+      const fitScale = Math.min(scaleX, scaleY, 0.95); // Cap at 95%
       
       // Ensure minimum scale so everything is visible
-      const finalScale = Math.max(fitScale, 0.25);
+      const finalScale = Math.max(fitScale, 0.28);
       
       // Calculate pan to center everything
       const centerX = bounds.x + bounds.width / 2;
@@ -92,7 +120,7 @@ export default function SpriteWorld({
       prevAgentCountRef.current = agents.length;
     };
     
-    // Center immediately
+    // Center immediately (always center on load, even without agents)
     centerView();
     
     // Also re-center when container size changes (e.g., panel opens)
@@ -197,14 +225,12 @@ export default function SpriteWorld({
             if (container) {
               const rect = container.getBoundingClientRect();
               const bounds = getWorldBounds();
-              const paddingX = 20 * 3;
-              const paddingY = 20 * 3;
               const newScale = Math.min(
                 Math.max(Math.min(
-                  rect.width / (bounds.width + paddingX * 2),
-                  rect.height / (bounds.height + paddingY * 2)
-                ), 0.25),
-                0.9
+                  rect.width / bounds.width,
+                  rect.height / bounds.height
+                ), 0.28),
+                0.95
               );
               const centerX = bounds.x + bounds.width / 2;
               const centerY = bounds.y + bounds.height / 2;

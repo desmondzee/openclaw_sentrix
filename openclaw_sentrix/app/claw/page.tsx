@@ -669,7 +669,7 @@ export default function ClawPage() {
             type="button"
             onClick={() => setIsPanelOpen((v) => !v)}
             className={`
-              fixed right-0 top-20 z-50 flex items-center justify-center
+              fixed right-0 top-36 z-50 flex items-center justify-center
               rounded-l border border-r-0 border-[var(--pixel-border)] 
               bg-[var(--surface)] px-2 py-3 shadow-lg
               transition-all duration-300 ease-out

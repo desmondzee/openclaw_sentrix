@@ -38,12 +38,15 @@ export function SpriteView({ policeState }: SpriteViewProps) {
     [agents]
   );
 
+  // Default to "medium_above" if no escalation level is configured
+  const escalationLevel = policeState.escalation_level ?? "medium_above";
+  
   const { responseState } = usePatrolResponseSequence(
     notification,
     dismiss,
     getAgentPosition,
     agents,
-    policeState.escalation_level
+    escalationLevel
   );
 
   const getAgentStatus = useCallback(
