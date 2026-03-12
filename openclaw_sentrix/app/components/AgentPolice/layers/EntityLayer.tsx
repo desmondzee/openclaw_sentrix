@@ -26,12 +26,26 @@ export function EntityLayer({
   agents,
   response,
 }: EntityLayerProps) {
+  // Sort agents so main agent is first, then subagents
+  const sortedAgents = useMemo(() => {
+    return [...agents].sort((a, b) => {
+      // Primary agent always comes first
+      if (a.role === "primary") return -1;
+      if (b.role === "primary") return 1;
+      // Then sort by role (subagents next)
+      if (a.role === "subagent" && b.role !== "subagent") return -1;
+      if (b.role === "subagent" && a.role !== "subagent") return 1;
+      // Finally sort by name for consistent ordering
+      return a.name.localeCompare(b.name);
+    });
+  }, [agents]);
+
   const agentSprites = useMemo(() => {
     const sprites: React.ReactNode[] = [];
     const room = rooms[0];
     if (!room) return sprites;
-    for (let i = 0; i < agents.length && i < room.desks.length; i++) {
-      const agent = agents[i];
+    for (let i = 0; i < sortedAgents.length && i < room.desks.length; i++) {
+      const agent = sortedAgents[i];
       const desk = room.desks[i];
       const status = (getAgentStatus(agent.id) || "working") as AgentStatus;
       sprites.push(
@@ -50,7 +64,7 @@ export function EntityLayer({
       );
     }
     return sprites;
-  }, [selectedAgentId, onSelectAgent, getAgentStatus, agents]);
+  }, [selectedAgentId, onSelectAgent, getAgentStatus, sortedAgents]);
 
   const isResponseActive =
     response &&

@@ -76,19 +76,21 @@ sentrix police investigate <FLAG_ID>  Run investigation for a patrol flag
 
 ### `sentrix run`
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--log-dir PATH` | `./agent_logs` | Host directory for logs and case files |
-| `--rotate-mins N` | `10` | Log rotation interval in minutes |
-| `--reasoning / --no-reasoning` | `on` | Capture reasoning/thinking tokens |
-| `--port N` | `18789` | Gateway port |
-| `--timeout N` | `60` | Sandbox timeout in minutes |
-| `-e KEY=VALUE` | | Extra env vars (repeatable) |
-| `--image TAG` | `sentrix-openclaw:latest` | Override sandbox image |
-| `--patrol` | | Enable patrol swarm |
-| `--escalation LEVEL` | | Auto-escalate flags (`low_above`, `medium_above`, `high_only`) |
-| `--nobridge` | | Skip the WSS bridge |
-| `--verbose` | | Verbose output |
+
+| Flag                           | Default                   | Description                                                    |
+| ------------------------------ | ------------------------- | -------------------------------------------------------------- |
+| `--log-dir PATH`               | `./agent_logs`            | Host directory for logs and case files                         |
+| `--rotate-mins N`              | `10`                      | Log rotation interval in minutes                               |
+| `--reasoning / --no-reasoning` | `on`                      | Capture reasoning/thinking tokens                              |
+| `--port N`                     | `18789`                   | Gateway port                                                   |
+| `--timeout N`                  | `60`                      | Sandbox timeout in minutes                                     |
+| `-e KEY=VALUE`                 |                           | Extra env vars (repeatable)                                    |
+| `--image TAG`                  | `sentrix-openclaw:latest` | Override sandbox image                                         |
+| `--patrol`                     |                           | Enable patrol swarm                                            |
+| `--escalation LEVEL`           |                           | Auto-escalate flags (`low_above`, `medium_above`, `high_only`) |
+| `--nobridge`                   |                           | Skip the WSS bridge                                            |
+| `--verbose`                    |                           | Verbose output                                                 |
+
 
 ### Patrol Swarm
 
@@ -101,14 +103,16 @@ When patrol is enabled (via wizard or `--patrol`), Sentrix runs a LangGraph-base
 - Pheromone-based coordination prevents redundant scans
 - Cleared state stored in `patrol_state.db` (SQLite, WAL mode)
 
-| Env var | Description |
-|---------|-------------|
-| `OPENAI_API_KEY` | API key for patrol LLM (preferred) |
-| `ANTHROPIC_API_KEY` | Fallback API key for patrol LLM |
-| `PATROL_MODEL` | Model name (e.g. `gpt-4o-mini`, `claude-haiku-4-5-20251001`) |
-| `PATROL_CONFIDENCE_THRESHOLD` | Min confidence to emit a flag (default `0.6`) |
-| `PATROL_RULESET_VERSION` | Bump to re-review all logs |
-| `PATROL_MODEL_VERSION` | Bump when changing patrol model |
+
+| Env var                       | Description                                                  |
+| ----------------------------- | ------------------------------------------------------------ |
+| `OPENAI_API_KEY`              | API key for patrol LLM (preferred)                           |
+| `ANTHROPIC_API_KEY`           | Fallback API key for patrol LLM                              |
+| `PATROL_MODEL`                | Model name (e.g. `gpt-4o-mini`, `claude-haiku-4-5-20251001`) |
+| `PATROL_CONFIDENCE_THRESHOLD` | Min confidence to emit a flag (default `0.6`)                |
+| `PATROL_RULESET_VERSION`      | Bump to re-review all logs                                   |
+| `PATROL_MODEL_VERSION`        | Bump when changing patrol model                              |
+
 
 ### Police Investigator
 
@@ -122,6 +126,7 @@ Flags that meet the escalation threshold are queued for the **LeadInvestigator**
 Case files are persisted to `police.db` and written as JSON reports to `agent_logs/reports/`.
 
 View results with:
+
 ```bash
 sentrix police                        # list cases and flags
 sentrix police --cases                # show case files only
@@ -133,10 +138,12 @@ sentrix police investigate <FLAG_ID>  # manually trigger investigation
 
 Attach to a sandbox started by `sentrix run` and interact with the OpenClaw agent directly in your terminal.
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--dir PATH` | `./agent_logs` | Log directory (must match `sentrix run`) |
-| `--message`, `-m TEXT` | | Send a single message and exit |
+
+| Flag                   | Default        | Description                              |
+| ---------------------- | -------------- | ---------------------------------------- |
+| `--dir PATH`           | `./agent_logs` | Log directory (must match `sentrix run`) |
+| `--message`, `-m TEXT` |                | Send a single message and exit           |
+
 
 ### Web UI (Your Claw)
 
@@ -159,12 +166,14 @@ sentrix run -e ANTHROPIC_API_KEY=sk-ant-... -e OPENCLAW_DEFAULT_MODEL=anthropic/
 
 ## Security Defaults
 
-| Setting | Value | Meaning |
-|---------|-------|---------|
-| Shell/exec access | `deny` | Agent cannot run shell commands |
-| Filesystem | `workspace only` | Read/write restricted to workspace |
-| Sandboxing | `all` | Every agent runs in a sandbox container |
-| DM policy | `pairing` | Unknown senders must be approved by operator |
+
+| Setting           | Value            | Meaning                                      |
+| ----------------- | ---------------- | -------------------------------------------- |
+| Shell/exec access | `deny`           | Agent cannot run shell commands              |
+| Filesystem        | `workspace only` | Read/write restricted to workspace           |
+| Sandboxing        | `all`            | Every agent runs in a sandbox container      |
+| DM policy         | `pairing`        | Unknown senders must be approved by operator |
+
 
 ## Architecture
 
@@ -198,7 +207,14 @@ sentrix run -e ANTHROPIC_API_KEY=sk-ant-... -e OPENCLAW_DEFAULT_MODEL=anthropic/
 
 MIT
 
-
 ## Bugs to fix
 
 OpenAI API key error stating anthropic
+
+Patrol need to investigate agents
+
+Random agents spawning without sub agents (only spawn when sub agents)
+
+Home centering and no monitors/chairs currently in UI, toggle the sprite UI open/closed
+
+Support for kimi 2.5

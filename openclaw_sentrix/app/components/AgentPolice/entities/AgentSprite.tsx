@@ -7,8 +7,9 @@ import {
   STATUS_COLORS,
   SIZES,
   SPRITE_SHEETS,
-  RISK_SPRITE_MAP,
   SPRITE_DISPLAY_SIZES,
+  getAgentSprite,
+  type AgentRole,
 } from "../config/spriteConfig";
 import { CharacterSprite } from "./BaseCharacter";
 import { useAgentMovement } from "../hooks/useAgentMovement";
@@ -32,6 +33,7 @@ interface AgentSpriteProps {
 export function AgentSprite({
   agentId,
   name,
+  role,
   status,
   riskScore = "normal",
   x,
@@ -53,10 +55,9 @@ export function AgentSprite({
     setIsMounted(true);
   }, []);
 
-  const spriteSheet =
-    status === "suspended"
-      ? SPRITE_SHEETS.restricted
-      : SPRITE_SHEETS[RISK_SPRITE_MAP[riskScore]];
+  const spriteSheet = SPRITE_SHEETS[getAgentSprite(role as AgentRole, riskScore, status)];
+
+  const isPrimary = role === "primary";
 
   const drawAura = useCallback(
     (g: unknown) => {
@@ -68,16 +69,24 @@ export function AgentSprite({
         gr.circle(0, 0, SIZES.auraRadius);
         gr.fill();
       } else if (status === "working") {
-        gr.setFillStyle({ color: colors.border, alpha: 0.08 });
+        // Primary agent gets a stronger aura
+        const alpha = isPrimary ? 0.15 : 0.08;
+        gr.setFillStyle({ color: colors.border, alpha });
         gr.circle(0, 0, SIZES.auraRadius);
         gr.fill();
+        // Primary agent gets an outer glow ring
+        if (isPrimary) {
+          gr.setFillStyle({ color: 0x00d4ff, alpha: 0.05 });
+          gr.circle(0, 0, SIZES.auraRadius + 8 * S);
+          gr.fill();
+        }
       } else if (status === "idle") {
         gr.setFillStyle({ color: colors.border, alpha: 0.05 });
         gr.circle(0, 0, SIZES.auraRadius);
         gr.fill();
       }
     },
-    [status, colors.border, isMounted]
+    [status, colors.border, isMounted, isPrimary]
   );
 
   const drawSelection = useCallback(

@@ -41,6 +41,7 @@ export const SPRITE_SHEETS = {
   normal_agent: "/assets/normal_agent.png",
   low_risk_agent: "/assets/normal_agent.png",
   high_risk_agent: "/assets/high_risk_agent.png",
+  primary_agent: "/assets/normal_agent.png",
   restricted: "/assets/restricted.png",
   investigator: "/assets/investigator.png",
   patrol: "/assets/patrol.png",
@@ -62,8 +63,24 @@ export const SPRITE_DISPLAY_SIZES = {
 };
 
 export type RiskLevel = "normal" | "low" | "high";
+export type AgentRole = "primary" | "subagent";
 export const RISK_SPRITE_MAP: Record<RiskLevel, keyof typeof SPRITE_SHEETS> = {
   normal: "normal_agent",
   low: "low_risk_agent",
   high: "high_risk_agent",
 };
+
+/** Get the appropriate sprite based on role and risk level */
+export function getAgentSprite(
+  role: AgentRole | undefined,
+  riskLevel: RiskLevel,
+  status: AgentStatus
+): keyof typeof SPRITE_SHEETS {
+  if (status === "suspended") {
+    return "restricted";
+  }
+  if (role === "primary") {
+    return "primary_agent";
+  }
+  return RISK_SPRITE_MAP[riskLevel];
+}

@@ -35,7 +35,13 @@ def _read_patrol_enabled(log_dir: Path) -> bool:
 
 
 def _get_agents_from_log_dir(log_dir: Path) -> list[dict]:
-    """Extract unique runIds from the most recent rotated .json in log_dir. Returns list of agent dicts."""
+    """Extract active agents from log files.
+    
+    This function analyzes recent log files to identify currently active agents.
+    It returns one main agent (representing the primary OpenClaw instance) and
+    any subagents that have been spawned. Each unique runId represents an agent
+    session - the most recent run is the main agent, others are potential subagents.
+    """
     json_files = [
         f
         for f in log_dir.iterdir()
@@ -45,24 +51,69 @@ def _get_agents_from_log_dir(log_dir: Path) -> list[dict]:
     ]
     if not json_files:
         return []
-    # Most recent by mtime
-    latest = max(json_files, key=lambda p: p.stat().st_mtime)
-    try:
-        raw = json.loads(latest.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return []
-    if not isinstance(raw, list):
-        return []
-    run_ids: set[str] = set()
-    for obj in raw:
-        if isinstance(obj, dict):
+    
+    # Consider logs from last 30 minutes to only show active agents
+    cutoff_time = (datetime.now(timezone.utc) - timedelta(minutes=30)).timestamp() * 1000
+    
+    # Collect all runs with their latest timestamp from recent files
+    run_activity: dict[str, float] = {}
+    
+    for log_file in json_files:
+        # Skip older files based on mtime for efficiency
+        file_mtime = log_file.stat().st_mtime * 1000
+        if file_mtime < cutoff_time:
+            continue
+            
+        try:
+            raw = json.loads(log_file.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        if not isinstance(raw, list):
+            continue
+            
+        for obj in raw:
+            if not isinstance(obj, dict):
+                continue
+            ts = obj.get("ts")
+            if not isinstance(ts, (int, float)):
+                continue
+            # Only consider recent activity
+            if ts < cutoff_time:
+                continue
             rid = obj.get("runId")
             if isinstance(rid, str) and rid:
-                run_ids.add(rid)
-    return [
-        {"id": rid, "name": f"Agent {rid}", "status": "working"}
-        for rid in sorted(run_ids)
-    ]
+                # Track the most recent activity for each run
+                run_activity[rid] = max(run_activity.get(rid, 0), ts)
+    
+    if not run_activity:
+        return []
+    
+    # Sort runs by activity time (most recent first)
+    sorted_runs = sorted(run_activity.items(), key=lambda x: x[1], reverse=True)
+    
+    # The most recent run is the main agent, others are potential subagents
+    agents: list[dict] = []
+    for i, (rid, _) in enumerate(sorted_runs):
+        if i == 0:
+            # Main agent
+            agents.append({
+                "id": rid,
+                "name": "Main Agent",
+                "role": "primary",
+                "status": "working",
+                "riskScore": "normal",
+            })
+        else:
+            # Potential subagent
+            agents.append({
+                "id": rid,
+                "name": f"Subagent-{i}",
+                "role": "subagent",
+                "status": "working",
+                "riskScore": "normal",
+            })
+    
+    return agents
 
 
 def _get_flags_from_log_dir(log_dir: Path) -> list[dict]:
