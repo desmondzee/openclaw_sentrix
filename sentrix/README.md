@@ -209,7 +209,7 @@ MIT
 
 ## Bugs to fix
 
-OpenAI API key error stating anthropic
+OpenAI API key error stating anthropic,Support for kimi 2.5
 
 Patrol need to investigate agents
 
@@ -217,4 +217,3 @@ Random agents spawning without sub agents (only spawn when sub agents)
 
 Home centering and no monitors/chairs currently in UI, toggle the sprite UI open/closed
 
-Support for kimi 2.5

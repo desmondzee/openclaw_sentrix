@@ -11,7 +11,7 @@ import type {
 } from "./types";
 import { WORLD_COLORS } from "./config/spriteConfig";
 import { preloadEssentialSprites, preloadAllSprites } from "./hooks/spriteLoader";
-import { WORLD_WIDTH, WORLD_HEIGHT, getWorldBounds } from "./config/roomLayout";
+import { getWorldBounds } from "./config/roomLayout";
 import { FloorLayer } from "./layers/FloorLayer";
 import { EntityLayer } from "./layers/EntityLayer";
 import { EffectsLayer } from "./layers/EffectsLayer";
@@ -112,7 +112,8 @@ export default function SpriteWorld({
       const gr = g as { clear: () => void; setFillStyle: (o: object) => void; rect: (a: number, b: number, c: number, d: number) => void; fill: () => void };
       gr.clear();
       gr.setFillStyle({ color: WORLD_COLORS.background });
-      gr.rect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+      const bounds = getWorldBounds();
+      gr.rect(0, 0, bounds.width, bounds.height);
       gr.fill();
     },
     []

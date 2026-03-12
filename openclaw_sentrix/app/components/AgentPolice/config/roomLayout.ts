@@ -1,13 +1,19 @@
 /**
  * Simplified room layout for openclaw: one main room with dynamic desk grid for N agents,
  * control room with investigator home. No quarantine/entertainment.
+ * Layout: Vertical stack with control room below main room, with proper margins.
  */
 const S = 3;
 const COLS = 4; // Fewer columns for better fit
 const MAX_AGENTS = 12; // Max 12 agents to fit in room
 
-export const WORLD_WIDTH = 1200 * S;
-export const WORLD_HEIGHT = 900 * S;
+// Margins around the world
+const MARGIN_X = 60 * S;
+const MARGIN_Y = 50 * S;
+const GAP_BETWEEN_ROOMS = 30 * S;
+
+export const WORLD_WIDTH = 600 * S + MARGIN_X * 2;
+export const WORLD_HEIGHT = 700 * S + MARGIN_Y * 2;
 
 export interface DeskPosition {
   agentId: string;
@@ -25,15 +31,16 @@ export interface RoomConfig {
   desks: DeskPosition[];
 }
 
-// Main room - positioned to fit within view with control room
-const MAIN_ROOM_X = 100 * S;
-const MAIN_ROOM_Y = 60 * S;
-const MAIN_ROOM_W = 500 * S;
-const MAIN_ROOM_H = 320 * S;
+// Main room - at the top with margins
+const MAIN_ROOM_W = 480 * S;
+const MAIN_ROOM_H = 300 * S;
+const MAIN_ROOM_X = MARGIN_X;
+const MAIN_ROOM_Y = MARGIN_Y;
+
 const DESK_STEP_X = 100 * S;
 const DESK_STEP_Y = 70 * S;
-const DESK_START_X = MAIN_ROOM_X + 50 * S;
-const DESK_START_Y = MAIN_ROOM_Y + 50 * S;
+const DESK_START_X = MAIN_ROOM_X + 40 * S;
+const DESK_START_Y = MAIN_ROOM_Y + 45 * S;
 
 const mainRoomDesks: DeskPosition[] = [];
 for (let i = 0; i < MAX_AGENTS; i++) {
@@ -58,13 +65,19 @@ export const rooms: RoomConfig[] = [
   },
 ];
 
+// Control room - below main room
+const CONTROL_ROOM_W = 300 * S;
+const CONTROL_ROOM_H = 120 * S;
+const CONTROL_ROOM_X = MAIN_ROOM_X + (MAIN_ROOM_W - CONTROL_ROOM_W) / 2; // Centered under main
+const CONTROL_ROOM_Y = MAIN_ROOM_Y + MAIN_ROOM_H + GAP_BETWEEN_ROOMS;
+
 export const controlRoom = {
-  x: 650 * S,
-  y: 60 * S,
-  width: 250 * S,
-  height: 200 * S,
+  x: CONTROL_ROOM_X,
+  y: CONTROL_ROOM_Y,
+  width: CONTROL_ROOM_W,
+  height: CONTROL_ROOM_H,
   investigatorPositions: [
-    { id: "f1", x: 775 * S, y: 160 * S },
+    { id: "f1", x: CONTROL_ROOM_X + CONTROL_ROOM_W / 2, y: CONTROL_ROOM_Y + CONTROL_ROOM_H / 2 },
   ],
 };
 
@@ -75,12 +88,12 @@ export const patrolWaypoints = [
   { x: MAIN_ROOM_X + MAIN_ROOM_W / 2, y: MAIN_ROOM_Y + MAIN_ROOM_H - 40 * S },
 ];
 
-/** Get bounding box that includes both main room and control room */
+/** Get bounding box that includes both main room and control room with margins */
 export function getWorldBounds() {
-  const minX = Math.min(MAIN_ROOM_X, controlRoom.x);
-  const minY = Math.min(MAIN_ROOM_Y, controlRoom.y);
-  const maxX = Math.max(MAIN_ROOM_X + MAIN_ROOM_W, controlRoom.x + controlRoom.width);
-  const maxY = Math.max(MAIN_ROOM_Y + MAIN_ROOM_H, controlRoom.y + controlRoom.height);
+  const minX = 0;
+  const minY = 0;
+  const maxX = MAIN_ROOM_X + MAIN_ROOM_W + MARGIN_X;
+  const maxY = CONTROL_ROOM_Y + CONTROL_ROOM_H + MARGIN_Y;
   return {
     x: minX,
     y: minY,

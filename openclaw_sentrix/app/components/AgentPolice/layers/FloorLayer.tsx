@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { rooms, controlRoom, WORLD_WIDTH, WORLD_HEIGHT } from "../config/roomLayout";
+import { rooms, controlRoom, getWorldBounds } from "../config/roomLayout";
 import { WORLD_COLORS } from "../config/spriteConfig";
 
 export function FloorLayer() {
@@ -17,8 +17,11 @@ export function FloorLayer() {
         stroke: () => void;
       };
       gr.clear();
+      
+      // Draw background based on world bounds
+      const bounds = getWorldBounds();
       gr.setFillStyle({ color: WORLD_COLORS.background });
-      gr.rect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+      gr.rect(0, 0, bounds.width, bounds.height);
       gr.fill();
 
       for (const room of rooms) {
