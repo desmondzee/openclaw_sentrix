@@ -749,7 +749,7 @@ export default function ClawPage() {
           `}
           style={{ minWidth: showAgentPanel ? "500px" : "0px" }}
         >
-          {/* Panel content - fills available space */}
+          {/* Panel content - 50/50 split */}
           <div 
             className={`
               flex flex-col h-full
@@ -757,21 +757,19 @@ export default function ClawPage() {
               ${showAgentPanel ? "opacity-100" : "opacity-0"}
             `}
           >
-            {/* Sprite world view - takes most space */}
-            <div className="flex-1 min-h-0">
+            {/* Sprite world view - 50% height */}
+            <div className="h-1/2 min-h-0">
               <SpriteView policeState={policeState} />
             </div>
             
-            {/* Investigation Registry - at bottom */}
-            <div className="shrink-0 border-t border-[var(--pixel-border)] p-2">
+            {/* Investigation Registry - 50% height */}
+            <div className="h-1/2 min-h-0 border-t border-[var(--pixel-border)]">
               <InvestigationRegistry
                 reports={reports}
                 selectedId={selectedReportId}
                 onSelect={(id) => {
                   setSelectedReportId(id);
-                  // Mark as viewed
                   markReportViewed(id).catch(() => {});
-                  // Update local state to reflect viewed
                   setReports(prev => prev.map(r => 
                     r.investigation_id === id ? { ...r, viewed: true } : r
                   ));

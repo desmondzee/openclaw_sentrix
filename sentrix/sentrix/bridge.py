@@ -122,15 +122,18 @@ def _get_case_files_from_db(log_dir: Path, limit: int = 50) -> list[dict]:
 def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> tuple[list[dict], dict[str, str]]:
     """Extract active agents from log files.
     
-    This function analyzes recent log files to identify currently active agents
-    grouped by sessionKey. sessionKey identifies the actual agent (e.g.,
-    'agent:main:main' for main agent, 'agent:main:subagent:uuid' for subagents).
-    Multiple runIds can belong to the same sessionKey.
+    This function analyzes recent log files to identify currently active agents.
+    
+    Subagent lifecycle:
+    - SPAWN: Detected when main agent content contains "The session key is `agent:main:subagent:{uuid}`"
+    - DESPAWN: Detected when we see runId pattern "announce:v1:agent:main:subagent:{uuid}:{runId}"
     
     Returns:
         - List of agent dictionaries
         - Mapping of log file names to agent IDs (for flag correlation)
     """
+    import re
+    
     json_files = [
         f
         for f in log_dir.iterdir()
@@ -139,26 +142,26 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> tuple[lis
         and not f.name.startswith(".")
     ]
     if not json_files:
-        return [], {}, {}
+        return [], {}
     
-    # Only use the most recent log file to avoid stale data from previous sessions
+    # Only use the most recent log file
     json_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     
-    # Main agent: consider logs from last 30 minutes
+    # Cutoff times
     main_cutoff_time = (datetime.now(timezone.utc) - timedelta(minutes=30)).timestamp() * 1000
-    # Subagents: only consider recent activity (5 minutes) since they complete faster
-    subagent_cutoff_time = (datetime.now(timezone.utc) - timedelta(minutes=5)).timestamp() * 1000
     
-    # Collect all sessionKeys with their latest activity and a sample runId
-    session_activity: dict[str, dict] = {}  # sessionKey -> {last_ts, run_id, is_subagent, log_file}
-    # Track which log file each agent ID belongs to (for flag correlation)
-    log_file_to_agent: dict[str, str] = {}  # log_file_name -> agent_id
+    # Track subagent lifecycle
+    # spawned_subagents: {session_key: {spawn_ts, spawn_run_id, despawned: bool, despawn_ts}}
+    spawned_subagents: dict[str, dict] = {}
+    main_agent_activity: dict | None = None
+    log_file_to_agent: dict[str, str] = {}
     
-    now_ts = datetime.now(timezone.utc).timestamp() * 1000
+    # Regex to extract session key from content
+    session_key_pattern = re.compile(r"The session key is `agent:main:subagent:([^`]+)`")
+    # Regex to match announce runId pattern
+    announce_pattern = re.compile(r"announce:v1:agent:main:subagent:([^:]+):(.+)")
     
-    # Only process the most recent log file
     for log_file in json_files[:1]:
-        # Skip if file is too old
         file_mtime = log_file.stat().st_mtime * 1000
         if file_mtime < main_cutoff_time:
             logger.debug(f"[get_agents] Skipping old log file: {log_file.name}")
@@ -179,121 +182,85 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> tuple[lis
             ts = obj.get("ts")
             if not isinstance(ts, (int, float)):
                 continue
-            
-            # Use sessionKey if available, fall back to runId
-            session_key = obj.get("sessionKey")
-            run_id = obj.get("runId")
-            
-            is_runid_fallback = False
-            is_subagent = False
-            extracted_session_key = None
-            
-            if isinstance(session_key, str) and session_key:
-                key = session_key
-                is_subagent = ":subagent:" in session_key
-            elif isinstance(run_id, str) and run_id:
-                # Check for announcement runId pattern: announce:v1:agent:main:subagent:{uuid}:{runId}
-                # This indicates a subagent spawn announcement
-                if run_id.startswith("announce:v1:") and ":subagent:" in run_id:
-                    # Parse out the subagent session key
-                    parts = run_id.split(":")
-                    if len(parts) >= 5:
-                        subagent_idx = -1
-                        for i, p in enumerate(parts):
-                            if p == "subagent" and i > 0:
-                                subagent_idx = i
-                                break
-                        if subagent_idx > 0:
-                            extracted_session_key = ":".join(parts[2:subagent_idx+2])
-                            key = extracted_session_key
-                            is_subagent = True
-                        else:
-                            key = run_id
-                    else:
-                        key = run_id
-                else:
-                    # Regular runId - treat as main agent
-                    key = run_id
-                    is_runid_fallback = True
-            else:
+            if ts < main_cutoff_time:
                 continue
             
-            # Apply appropriate cutoff based on agent type
-            cutoff = subagent_cutoff_time if is_subagent else main_cutoff_time
-            if ts < cutoff:
-                continue
+            run_id = obj.get("runId", "")
+            event = obj.get("event", "")
+            content = obj.get("content", "")
+            delta = obj.get("delta", "")
             
-            # Track the most recent activity for each session
-            if key not in session_activity or ts > session_activity[key]["last_ts"]:
-                session_activity[key] = {
-                    "last_ts": ts,
-                    "run_id": run_id if isinstance(run_id, str) else key,
-                    "is_subagent": is_subagent,
-                    "is_runid_fallback": is_runid_fallback and not is_subagent,
-                    "log_file": log_file.name,
-                }
+            # Check for subagent spawn in content/delta (from main agent)
+            text_to_check = str(content) + str(delta)
+            spawn_match = session_key_pattern.search(text_to_check)
+            if spawn_match:
+                uuid = spawn_match.group(1)
+                session_key = f"agent:main:subagent:{uuid}"
+                if session_key not in spawned_subagents:
+                    logger.debug(f"[get_agents] Detected subagent spawn: {session_key} at ts={ts}")
+                    spawned_subagents[session_key] = {
+                        "spawn_ts": ts,
+                        "spawn_run_id": run_id if isinstance(run_id, str) else "",
+                        "despawned": False,
+                        "despawn_ts": None,
+                        "log_file": log_file.name,
+                    }
+            
+            # Check for subagent despawn (announce runId pattern)
+            if isinstance(run_id, str):
+                announce_match = announce_pattern.match(run_id)
+                if announce_match:
+                    uuid = announce_match.group(1)
+                    session_key = f"agent:main:subagent:{uuid}"
+                    if session_key in spawned_subagents and not spawned_subagents[session_key]["despawned"]:
+                        logger.debug(f"[get_agents] Detected subagent despawn: {session_key} at ts={ts}")
+                        spawned_subagents[session_key]["despawned"] = True
+                        spawned_subagents[session_key]["despawn_ts"] = ts
+            
+            # Track main agent activity (non-announce runIds without subagent in them)
+            if isinstance(run_id, str) and not run_id.startswith("announce:") and ":subagent:" not in run_id:
+                if main_agent_activity is None or ts > main_agent_activity["last_ts"]:
+                    main_agent_activity = {
+                        "last_ts": ts,
+                        "run_id": run_id,
+                        "log_file": log_file.name,
+                    }
     
-    if not session_activity:
-        return [], {}
-    
-    # Separate main agent and subagents
-    main_sessions = []
-    subagent_sessions = []
-    
-    # Check if we have any real sessionKeys (not just runIds)
-    has_real_session_keys = any(
-        not data.get("is_runid_fallback", True) 
-        for data in session_activity.values()
-    )
-    
-    for session_key, data in session_activity.items():
-        if data["is_subagent"]:
-            subagent_sessions.append((session_key, data))
-        else:
-            main_sessions.append((session_key, data))
-    
-    # Sort by activity time (most recent first)
-    main_sessions.sort(key=lambda x: x[1]["last_ts"], reverse=True)
-    subagent_sessions.sort(key=lambda x: x[1]["last_ts"], reverse=True)
-    
-    # Build agents list and log file mapping
+    # Build agents list
     agents: list[dict] = []
     
-    # Add main agent (most recent non-subagent session)
-    if main_sessions:
-        session_key, data = main_sessions[0]
-        agent_id = data["run_id"]
+    # Add main agent
+    if main_agent_activity:
         agents.append({
-            "id": agent_id,
+            "id": main_agent_activity["run_id"],
             "name": "Main Agent",
             "role": "primary",
             "status": "working",
             "riskScore": "normal",
+            "sessionKey": "agent:main:main",
+        })
+        log_file_to_agent[main_agent_activity["log_file"]] = main_agent_activity["run_id"]
+    
+    # Add active (spawned but not despawned) subagents
+    active_subagents = [
+        (sk, data) for sk, data in spawned_subagents.items()
+        if not data["despawned"]
+    ]
+    # Sort by spawn time (oldest first for consistent numbering)
+    active_subagents.sort(key=lambda x: x[1]["spawn_ts"])
+    
+    for i, (session_key, data) in enumerate(active_subagents[:max_subagents]):
+        agent_id = data["spawn_run_id"] or f"subagent-{i+1}"
+        agents.append({
+            "id": agent_id,
+            "name": f"Subagent-{i + 1}",
+            "role": "subagent",
+            "status": "working",
+            "riskScore": "normal",
             "sessionKey": session_key,
         })
-        # Map the log file to this agent ID for flag correlation
         if data.get("log_file"):
             log_file_to_agent[data["log_file"]] = agent_id
-    
-    # Only add subagents if we have real sessionKeys (not just runId fallbacks)
-    # Without sessionKey, we cannot distinguish subagents from different runs of the same agent
-    if has_real_session_keys:
-        logger.debug(f"[get_agents] has_real_session_keys=True, adding {len(subagent_sessions[:max_subagents])} subagents")
-        for i, (session_key, data) in enumerate(subagent_sessions[:max_subagents]):
-            agent_id = data["run_id"]
-            agents.append({
-                "id": agent_id,
-                "name": f"Subagent-{i + 1}",
-                "role": "subagent",
-                "status": "working",
-                "riskScore": "normal",
-                "sessionKey": session_key,
-            })
-            # Map the log file to this agent ID for flag correlation
-            if data.get("log_file"):
-                log_file_to_agent[data["log_file"]] = agent_id
-    else:
-        logger.debug(f"[get_agents] has_real_session_keys=False, main_sessions={len(main_sessions)}, subagent_sessions={len(subagent_sessions)}")
     
     logger.debug(f"[get_agents] Returning {len(agents)} agents: {[a['name'] for a in agents]}")
     logger.debug(f"[get_agents] Log file mapping: {log_file_to_agent}")

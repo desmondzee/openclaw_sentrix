@@ -59,11 +59,9 @@ export function InvestigationRegistry({
 
   const sortedReports = useMemo(() => {
     return [...reports].sort((a, b) => {
-      // Sort by severity first (CRITICAL > HIGH > MEDIUM > LOW)
       const sevA = severityOrder.indexOf(a.case_file.severity_score || 'LOW');
       const sevB = severityOrder.indexOf(b.case_file.severity_score || 'LOW');
       if (sevA !== sevB) return sevA - sevB;
-      // Then by concluded_at (newest first)
       return new Date(b.concluded_at).getTime() - new Date(a.concluded_at).getTime();
     });
   }, [reports]);
@@ -78,7 +76,7 @@ export function InvestigationRegistry({
   const unviewedCount = useMemo(() => reports.filter(r => !r.viewed).length, [reports]);
 
   return (
-    <div className={`flex flex-col bg-[#0a0f1c] border border-[var(--pixel-border)] rounded-lg overflow-hidden ${className}`}>
+    <div className={`flex flex-col bg-[#0a0f1c] border-0 rounded-none overflow-hidden h-full ${className}`}>
       {/* Header */}
       <div className="px-3 py-2.5 border-b border-[var(--pixel-border)] bg-[#0d1320]">
         <div className="flex items-center justify-between">
