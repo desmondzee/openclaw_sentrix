@@ -1,6 +1,11 @@
 # syntax=docker/dockerfile:1.7
 
-# Sentrix sandbox image: Node 22 + OpenClaw + Python 3 log collector
+# Sentrix sandbox image: Node 22 + OpenClaw + Python 3 log collector.
+# OpenSandbox SDK and server expect execd on port 44772 inside the container for
+# health check and commands.run(); we copy the binary from the official image.
+FROM opensandbox/execd:v1.0.6 AS execdsrc
+
+# Sentrix app image
 FROM node:22-bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -17,6 +22,10 @@ RUN --mount=type=cache,id=sentrix-apt-cache,target=/var/cache/apt,sharing=locked
       python3 \
       procps && \
     rm -rf /tmp/*
+
+# Copy execd binary so OpenSandbox server/SDK can reach health and command API on port 44772
+COPY --from=execdsrc /execd /opt/sentrix/execd
+RUN chmod +x /opt/sentrix/execd
 
 RUN npm install -g openclaw@latest
 

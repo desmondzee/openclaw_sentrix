@@ -192,7 +192,11 @@ def image_exists(image: str) -> bool:
 
 
 async def create_sandbox(config: SentrixConfig) -> Sandbox:
-    """Create an OpenSandbox sandbox with the sentrix image."""
+    """Create an OpenSandbox sandbox with the sentrix image.
+
+    The image entrypoint starts execd on port 44772 first, so the SDK health check
+    and commands.run() (sync, channel login, etc.) work.
+    """
     conn = ConnectionConfig(use_server_proxy=True)
     sandbox = await Sandbox.create(
         config.image,
@@ -322,7 +326,7 @@ async def _run_channel_logins(sandbox: Sandbox, channels: list[str]) -> None:
 async def _wait_for_gateway(
     sandbox: Sandbox, port: int, timeout: float = GATEWAY_READY_TIMEOUT
 ) -> None:
-    """Poll gateway health inside the sandbox until it responds."""
+    """Poll gateway health inside the sandbox until it responds (via execd)."""
     elapsed = 0.0
     while elapsed < timeout:
         try:

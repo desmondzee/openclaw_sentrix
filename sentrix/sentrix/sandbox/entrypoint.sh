@@ -11,33 +11,31 @@ mkdir -p /data/agent_logs "$(dirname "$OPENCLAW_RAW_STREAM_PATH")"
 
 OPENCLAW_PID=""
 COLLECTOR_PID=""
+EXECD_PID=""
 
 cleanup() {
     echo "[sentrix] shutting down..." >&2
     [ -n "$OPENCLAW_PID" ]   && kill -TERM "$OPENCLAW_PID"   2>/dev/null || true
     [ -n "$COLLECTOR_PID" ]  && kill -TERM "$COLLECTOR_PID"  2>/dev/null || true
+    [ -n "$EXECD_PID" ]      && kill -TERM "$EXECD_PID"     2>/dev/null || true
     wait "$COLLECTOR_PID" 2>/dev/null || true
     wait "$OPENCLAW_PID"  2>/dev/null || true
+    wait "$EXECD_PID" 2>/dev/null || true
     echo "[sentrix] shutdown complete." >&2
 }
 
 trap cleanup SIGTERM SIGINT
 
-# Debug: confirm env is available (redacted)
-if [ -n "${OPENCLAW_DEFAULT_MODEL:-}" ]; then
-  echo "[sentrix] OPENCLAW_DEFAULT_MODEL=${OPENCLAW_DEFAULT_MODEL}" >&2
-fi
-for v in OPENAI_API_KEY ANTHROPIC_API_KEY MINIMAX_API_KEY MOONSHOT_API_KEY GEMINI_API_KEY; do
-  if [ -n "${!v:-}" ]; then
-    echo "[sentrix] ${v} is set (len=${#!v})" >&2
-  fi
-done
+# OpenSandbox server/SDK expect execd on port 44772 for health check and command execution.
+# Start it first so the sandbox becomes "ready" and sync/commands work.
+/opt/sentrix/execd &
+EXECD_PID=$!
+# Give execd a moment to bind before we run init_auth and gateway
+sleep 2
 
-# Must run before gateway so auth-profiles.json and openclaw.json are ready
-if ! /opt/sentrix/init_auth.py; then
-  echo "[sentrix] init_auth.py failed (check env and paths above)" >&2
-  exit 1
-fi
+# Run before gateway so auth-profiles.json and openclaw.json are ready.
+# Do not exit on failure or gateway never starts.
+/opt/sentrix/init_auth.py || true
 
 openclaw gateway run \
     --raw-stream \
