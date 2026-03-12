@@ -103,14 +103,40 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict
             run_id = obj.get("runId")
             
             is_runid_fallback = False
+            is_subagent = False
+            extracted_session_key = None
+            
             if isinstance(session_key, str) and session_key:
                 key = session_key
                 is_subagent = ":subagent:" in session_key
             elif isinstance(run_id, str) and run_id:
-                # Fallback: use runId (for backwards compatibility with old logs)
-                key = run_id
-                is_subagent = False
-                is_runid_fallback = True
+                # Check for announcement runId pattern: announce:v1:agent:main:subagent:{uuid}:{runId}
+                # This indicates a subagent spawn announcement
+                if run_id.startswith("announce:v1:") and ":subagent:" in run_id:
+                    # Parse out the subagent session key
+                    # Format: announce:v1:{session_key}:{run_id_suffix}
+                    parts = run_id.split(":")
+                    if len(parts) >= 5:
+                        # Reconstruct session key from parts (skip 'announce', 'v1')
+                        # parts[2:] up to finding the pattern
+                        subagent_idx = -1
+                        for i, p in enumerate(parts):
+                            if p == "subagent" and i > 0:
+                                subagent_idx = i
+                                break
+                        if subagent_idx > 0:
+                            # Session key is everything from parts[2] to subagent_idx+2 (includes uuid)
+                            extracted_session_key = ":".join(parts[2:subagent_idx+2])
+                            key = extracted_session_key
+                            is_subagent = True
+                        else:
+                            key = run_id
+                    else:
+                        key = run_id
+                else:
+                    # Regular runId - treat as main agent
+                    key = run_id
+                    is_runid_fallback = True
             else:
                 continue
             
@@ -120,7 +146,7 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict
                     "last_ts": ts,
                     "run_id": run_id if isinstance(run_id, str) else key,
                     "is_subagent": is_subagent,
-                    "is_runid_fallback": is_runid_fallback,
+                    "is_runid_fallback": is_runid_fallback and not is_subagent,
                 }
     
     if not session_activity:
@@ -160,24 +186,19 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict
             "riskScore": "normal",
             "sessionKey": session_key,
         })
-        
-        # If we don't have real sessionKeys, treat other recent sessions as subagents
-        # This is a fallback when OpenClaw hasn't been rebuilt with sessionKey logging
-        if not has_real_session_keys and len(main_sessions) > 1:
-            # Treat other non-main sessions as subagents
-            for i, (session_key, data) in enumerate(main_sessions[1:max_subagents+1]):
-                subagent_sessions.append((session_key, data))
     
-    # Add subagents (up to max_subagents)
-    for i, (session_key, data) in enumerate(subagent_sessions[:max_subagents]):
-        agents.append({
-            "id": data["run_id"],
-            "name": f"Subagent-{i + 1}",
-            "role": "subagent",
-            "status": "working",
-            "riskScore": "normal",
-            "sessionKey": session_key,
-        })
+    # Only add subagents if we have real sessionKeys (not just runId fallbacks)
+    # Without sessionKey, we cannot distinguish subagents from different runs of the same agent
+    if has_real_session_keys:
+        for i, (session_key, data) in enumerate(subagent_sessions[:max_subagents]):
+            agents.append({
+                "id": data["run_id"],
+                "name": f"Subagent-{i + 1}",
+                "role": "subagent",
+                "status": "working",
+                "riskScore": "normal",
+                "sessionKey": session_key,
+            })
     
     return agents
 

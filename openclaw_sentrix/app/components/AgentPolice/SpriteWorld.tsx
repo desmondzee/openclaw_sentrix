@@ -41,7 +41,7 @@ export default function SpriteWorld({
   const [preloaded, setPreloaded] = useState(false);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
-  const hasCenteredRef = useRef(false);
+  const prevAgentCountRef = useRef(0);
 
   useEffect(() => {
     preloadEssentialSprites().then(() => {
@@ -50,37 +50,58 @@ export default function SpriteWorld({
     });
   }, []);
 
-  // Auto-center view on the main room when agents are first loaded
+  // Auto-center view when agents change count, on first load, or when container resizes
   useEffect(() => {
-    if (!preloaded || hasCenteredRef.current || agents.length === 0) return;
+    if (!preloaded || agents.length === 0) return;
     
     const container = containerRef.current;
     if (!container) return;
     
-    const rect = container.getBoundingClientRect();
-    const containerWidth = rect.width;
-    const containerHeight = rect.height;
+    const centerView = () => {
+      const rect = container.getBoundingClientRect();
+      const containerWidth = rect.width;
+      const containerHeight = rect.height;
+      
+      // Skip if container has no size yet
+      if (containerWidth === 0 || containerHeight === 0) return;
+      
+      // Calculate scale to fit the main room with some padding
+      const padding = 100;
+      const roomWidth = rooms[0].width + padding * 2;
+      const roomHeight = rooms[0].height + padding * 2;
+      const scaleX = containerWidth / roomWidth;
+      const scaleY = containerHeight / roomHeight;
+      const fitScale = Math.min(scaleX, scaleY, 1); // Cap at 1 (100%)
+      
+      // Ensure minimum scale so agents are visible
+      const finalScale = Math.max(fitScale, 0.4);
+      
+      // Calculate pan to center the main room
+      const centerX = rooms[0].x + rooms[0].width / 2;
+      const centerY = rooms[0].y + rooms[0].height / 2;
+      const panX = containerWidth / 2 - centerX * finalScale;
+      const panY = containerHeight / 2 - centerY * finalScale;
+      
+      setScale(finalScale);
+      setPan({ x: panX, y: panY });
+      prevAgentCountRef.current = agents.length;
+    };
     
-    // Calculate scale to fit the main room with some padding
-    const padding = 100;
-    const roomWidth = rooms[0].width + padding * 2;
-    const roomHeight = rooms[0].height + padding * 2;
-    const scaleX = containerWidth / roomWidth;
-    const scaleY = containerHeight / roomHeight;
-    const fitScale = Math.min(scaleX, scaleY, 1); // Cap at 1 (100%)
+    // Center immediately
+    const shouldCenter = prevAgentCountRef.current !== agents.length || prevAgentCountRef.current === 0;
+    if (shouldCenter) {
+      centerView();
+    }
     
-    // Ensure minimum scale so agents are visible
-    const finalScale = Math.max(fitScale, 0.4);
+    // Also re-center when container size changes (e.g., panel opens)
+    const resizeObserver = new ResizeObserver(() => {
+      if (agents.length > 0) {
+        centerView();
+      }
+    });
+    resizeObserver.observe(container);
     
-    // Calculate pan to center the main room
-    const centerX = rooms[0].x + rooms[0].width / 2;
-    const centerY = rooms[0].y + rooms[0].height / 2;
-    const panX = containerWidth / 2 - centerX * finalScale;
-    const panY = containerHeight / 2 - centerY * finalScale;
-    
-    setScale(finalScale);
-    setPan({ x: panX, y: panY });
-    hasCenteredRef.current = true;
+    return () => resizeObserver.disconnect();
   }, [preloaded, agents]);
 
   const drawBackground = useCallback(
