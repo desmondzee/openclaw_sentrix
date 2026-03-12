@@ -125,11 +125,13 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> tuple[lis
     This function analyzes recent log files to identify currently active agents.
     
     Subagent lifecycle:
-    - SPAWN: Detected when main agent content contains "The session key is `agent:main:subagent:{uuid}`"
-    - DESPAWN: Detected when we see runId pattern "announce:v1:agent:main:subagent:{uuid}:{runId}"
-    
-    The session key can appear in complete form (content/rawText/rawThinking fields) or 
-    fragmented across text_delta events (delta field).
+    - SPAWN: Multiple detection methods:
+        1. Session key in content: "session key: `agent:main:subagent:{uuid}`"
+        2. Child session key: "Child session key: agent:main:subagent:{uuid}"
+        3. Spawn context + session key: "spawned" near "agent:main:subagent:{uuid}"
+        4. UUID runId with subagent content: runId is UUID and content contains "subagent"
+        5. Accumulated delta text reconstruction for fragmented session keys
+    - DESPAWN: Detected when we see runId pattern "announce:v1:agent:main:subagent:{uuid}:{parent_run_id}"
     
     Returns:
         - List of agent dictionaries
@@ -164,11 +166,18 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> tuple[lis
     # - "session key: `agent:main:subagent:{uuid}`"
     # - "Child session key: agent:main:subagent:{uuid}"
     # - "Session key: `agent:main:subagent:{uuid}`"
-    full_session_key_pattern = re.compile(r"[Ss]ession key[:is]+ `?agent:main:subagent:([^`\s]+)`?")
-    # Partial pattern: just the session key prefix (for fragmented detection)
+    # - "sub-agent has been spawned" (the word "spawn" near session patterns)
+    full_session_key_pattern = re.compile(r"[Ss]ession key[:is]+ `?agent:main:subagent:([a-f0-9-]{36})`?")
+    # Pattern for "Child session key: agent:main:subagent:{uuid}" (no backticks)
+    child_session_key_pattern = re.compile(r"[Cc]hild session key[:is]+ agent:main:subagent:([a-f0-9-]{36})")
+    # Partial pattern: just the session key prefix anywhere in text (for fragmented detection)
     session_key_prefix_pattern = re.compile(r"agent:main:subagent:([a-f0-9-]{36})")
+    # Pattern to detect spawn-related words near session key patterns
+    spawn_context_pattern = re.compile(r"(spawn|spawning|spawned|created|started)", re.IGNORECASE)
     # Regex to match announce runId pattern for despawn
     announce_pattern = re.compile(r"announce:v1:agent:main:subagent:([a-f0-9-]{36}):(.+)")
+    # UUID pattern for runId-based spawn detection (subagent runIds are UUIDs)
+    uuid_pattern = re.compile(r"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$", re.IGNORECASE)
     
     for log_file in json_files[:1]:
         file_mtime = log_file.stat().st_mtime * 1000
@@ -205,7 +214,7 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> tuple[lis
             raw_text = obj.get("rawText", "")
             raw_thinking = obj.get("rawThinking", "")
             
-            # Check for subagent spawn in complete fields first
+            # Build text to check for spawn patterns
             text_to_check = ""
             if content:
                 text_to_check += str(content)
@@ -214,37 +223,72 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> tuple[lis
             if raw_thinking:
                 text_to_check += str(raw_thinking)
             
+            # Check for subagent spawn via session key patterns in content fields
+            spawn_detected = False
+            session_key_from_text = None
+            
+            # Try full pattern first: "session key: `agent:main:subagent:{uuid}`"
             spawn_match = full_session_key_pattern.search(text_to_check)
             if spawn_match:
                 uuid = spawn_match.group(1)
-                session_key = f"agent:main:subagent:{uuid}"
-                if session_key not in spawned_subagents:
-                    logger.debug(f"[get_agents] Detected subagent spawn (complete): {session_key} at ts={ts}")
-                    spawned_subagents[session_key] = {
+                session_key_from_text = f"agent:main:subagent:{uuid}"
+                spawn_detected = True
+            
+            # Try child session key pattern: "Child session key: agent:main:subagent:{uuid}"
+            if not spawn_detected:
+                child_match = child_session_key_pattern.search(text_to_check)
+                if child_match:
+                    uuid = child_match.group(1)
+                    session_key_from_text = f"agent:main:subagent:{uuid}"
+                    spawn_detected = True
+            
+            # If spawn context exists but no full match, try partial pattern
+            if not spawn_detected and spawn_context_pattern.search(text_to_check):
+                partial_match = session_key_prefix_pattern.search(text_to_check)
+                if partial_match:
+                    uuid = partial_match.group(1)
+                    session_key_from_text = f"agent:main:subagent:{uuid}"
+                    spawn_detected = True
+            
+            if spawn_detected and session_key_from_text:
+                if session_key_from_text not in spawned_subagents:
+                    logger.debug(f"[get_agents] Detected subagent spawn (content): {session_key_from_text} at ts={ts}")
+                    spawned_subagents[session_key_from_text] = {
                         "spawn_ts": ts,
                         "spawn_run_id": run_id if isinstance(run_id, str) else "",
                         "despawned": False,
                         "despawn_ts": None,
                         "log_file": log_file.name,
                     }
-            else:
-                # Check for partial pattern in accumulated text
-                partial_match = session_key_prefix_pattern.search(text_to_check)
-                if partial_match:
-                    uuid = partial_match.group(1)
-                    session_key = f"agent:main:subagent:{uuid}"
-                    if session_key not in spawned_subagents:
-                        logger.debug(f"[get_agents] Detected subagent spawn (partial): {session_key} at ts={ts}")
-                        spawned_subagents[session_key] = {
+            
+            # Detect subagent by UUID runId pattern
+            # Subagents have UUID runIds that are different from main agent runIds
+            is_likely_subagent = False
+            if isinstance(run_id, str) and uuid_pattern.match(run_id):
+                # This could be a subagent runId - check content for confirmation
+                if run_id not in accumulated_texts:
+                    accumulated_texts[run_id] = ""
+                if delta:
+                    accumulated_texts[run_id] += str(delta)
+                
+                # Check if this runId's content indicates it's a subagent
+                acc_text = accumulated_texts[run_id]
+                if "subagent" in acc_text.lower() or "sub-agent" in acc_text.lower():
+                    is_likely_subagent = True
+                    # The session key for UUID-based subagents is agent:main:subagent:{uuid}
+                    potential_session_key = f"agent:main:subagent:{run_id}"
+                    if potential_session_key not in spawned_subagents:
+                        logger.debug(f"[get_agents] Detected subagent spawn (uuid+content): {potential_session_key} at ts={ts}")
+                        spawned_subagents[potential_session_key] = {
                             "spawn_ts": ts,
-                            "spawn_run_id": run_id if isinstance(run_id, str) else "",
+                            "spawn_run_id": run_id,
                             "despawned": False,
                             "despawn_ts": None,
                             "log_file": log_file.name,
                         }
             
             # Accumulate delta text for main agent runIds (to reconstruct fragmented session keys)
-            if isinstance(run_id, str) and not run_id.startswith("announce:") and ":subagent:" not in run_id:
+            if isinstance(run_id, str) and not run_id.startswith("announce:") and ":subagent:" not in run_id and not is_likely_subagent:
                 if delta:
                     if run_id not in accumulated_texts:
                         accumulated_texts[run_id] = ""
@@ -266,22 +310,32 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> tuple[lis
                                 "log_file": log_file.name,
                             }
                     else:
-                        # Also check for partial pattern
-                        partial_acc_match = session_key_prefix_pattern.search(acc_text)
-                        if partial_acc_match:
-                            uuid = partial_acc_match.group(1)
-                            session_key = f"agent:main:subagent:{uuid}"
-                            if session_key not in spawned_subagents:
-                                logger.debug(f"[get_agents] Detected subagent spawn (accumulated partial): {session_key} at ts={ts}")
-                                spawned_subagents[session_key] = {
-                                    "spawn_ts": ts,
-                                    "spawn_run_id": run_id,
-                                    "despawned": False,
-                                    "despawn_ts": None,
-                                    "log_file": log_file.name,
-                                }
+                        # Also check for partial pattern with spawn context
+                        if spawn_context_pattern.search(acc_text):
+                            partial_acc_match = session_key_prefix_pattern.search(acc_text)
+                            if partial_acc_match:
+                                uuid = partial_acc_match.group(1)
+                                session_key = f"agent:main:subagent:{uuid}"
+                                if session_key not in spawned_subagents:
+                                    logger.debug(f"[get_agents] Detected subagent spawn (accumulated partial): {session_key} at ts={ts}")
+                                    spawned_subagents[session_key] = {
+                                        "spawn_ts": ts,
+                                        "spawn_run_id": run_id,
+                                        "despawned": False,
+                                        "despawn_ts": None,
+                                        "log_file": log_file.name,
+                                    }
                 
-                # Track main agent activity
+                # Track main agent activity (for any delta-containing event from main agent)
+                if main_agent_activity is None or ts > main_agent_activity["last_ts"]:
+                    main_agent_activity = {
+                        "last_ts": ts,
+                        "run_id": run_id,
+                        "log_file": log_file.name,
+                    }
+            
+            # Also track main agent activity for non-delta events (like message_end)
+            elif isinstance(run_id, str) and not run_id.startswith("announce:") and ":subagent:" not in run_id and not is_likely_subagent:
                 if main_agent_activity is None or ts > main_agent_activity["last_ts"]:
                     main_agent_activity = {
                         "last_ts": ts,
@@ -290,12 +344,27 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> tuple[lis
                     }
             
             # Check for subagent despawn (announce runId pattern)
+            # Format: announce:v1:agent:main:subagent:{uuid}:{parent_run_id}
             if isinstance(run_id, str):
                 announce_match = announce_pattern.match(run_id)
                 if announce_match:
                     uuid = announce_match.group(1)
+                    parent_run_id = announce_match.group(2)
                     session_key = f"agent:main:subagent:{uuid}"
-                    if session_key in spawned_subagents and not spawned_subagents[session_key]["despawned"]:
+                    
+                    # If this subagent wasn't tracked yet, track it now (we know it's done)
+                    if session_key not in spawned_subagents:
+                        logger.debug(f"[get_agents] Found subagent via announce (was not tracked): {session_key}")
+                        spawned_subagents[session_key] = {
+                            "spawn_ts": ts - 60000,  # Approximate, 60s before completion
+                            "spawn_run_id": parent_run_id,
+                            "despawned": False,
+                            "despawn_ts": None,
+                            "log_file": log_file.name,
+                        }
+                    
+                    # Mark as despawned
+                    if not spawned_subagents[session_key]["despawned"]:
                         logger.debug(f"[get_agents] Detected subagent despawn: {session_key} at ts={ts}")
                         spawned_subagents[session_key]["despawned"] = True
                         spawned_subagents[session_key]["despawn_ts"] = ts

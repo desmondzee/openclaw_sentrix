@@ -49,7 +49,7 @@ export function WaitlistForm() {
         <button
           type="submit"
           disabled={status === "loading"}
-          className="px-6 py-3 rounded-lg bg-[var(--accent)] text-white font-[family-name:var(--font-pixel)] font-bold pixel-border-accent hover:bg-[var(--accent-dim)] disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 shrink-0"
+          className="px-6 py-3 rounded-lg bg-[var(--accent)] text-white font-[family-name:var(--font-pixel)] font-bold pixel-border-accent hover:bg-[var(--accent-dim)] disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 shrink-0 cursor-pointer"
         >
           {status === "loading" ? "..." : "Join waitlist"}
         </button>

@@ -2,6 +2,8 @@ import { Hero } from "./components/Hero";
 import { Problem } from "./components/Problem";
 import { Solution } from "./components/Solution";
 import { Tech } from "./components/Tech";
+import { InstallationGuide } from "./components/InstallationGuide";
+import { Footer } from "./components/Footer";
 import { WaitlistForm } from "./components/WaitlistForm";
 import { AnimatedSprite } from "./components/AnimatedSprite";
 import { CaptureSequence } from "./components/CaptureSequence";
@@ -22,25 +24,39 @@ export default function Home() {
       />
 
       <main className="relative z-10 flex flex-col items-center">
-        <div data-snap-section className="min-h-screen w-full">
+        {/* Hero Section */}
+        <section data-snap-section className="min-h-screen w-full">
           <Hero />
-        </div>
-        <div data-snap-section className="w-full">
+        </section>
+
+        {/* Problem Section */}
+        <section data-snap-section className="w-full">
           <Problem />
-        </div>
-        <div data-snap-section className="w-full shrink-0">
+        </section>
+
+        {/* Capture Sequence Demo */}
+        <section data-snap-section className="w-full shrink-0">
           <CaptureSequence />
-        </div>
-        <div data-snap-section className="w-full">
+        </section>
+
+        {/* Solution Section */}
+        <section data-snap-section className="w-full">
           <Solution />
-        </div>
-        <div data-snap-section id="nemotron-section" className="w-full">
+        </section>
+
+        {/* Installation Guide */}
+        <section data-snap-section id="install" className="w-full bg-gradient-to-b from-transparent via-[var(--accent)]/5 to-transparent">
+          <InstallationGuide />
+        </section>
+
+        {/* Tech Stack Section */}
+        <section data-snap-section id="nemotron-section" className="w-full">
           <Tech />
-        </div>
+        </section>
 
-        {/* Final CTA — no snap so user scrolls freely to waitlist */}
-        <section className="relative w-full min-h-[50vh] py-24 px-6 flex flex-col items-center justify-center text-center overflow-hidden">
-
+        {/* Final CTA Section */}
+        <section className="relative w-full min-h-[60vh] py-24 px-6 flex flex-col items-center justify-center text-center overflow-hidden">
+          {/* Background animated sprites */}
           <AnimatedSprite
             spritesheet="/assets/normal_agent.png"
             width={48}
@@ -80,24 +96,44 @@ export default function Home() {
             ]}
           />
 
-          <div className="relative z-10">
-            <h2 className="text-3xl font-bold font-[family-name:var(--font-pixel)] mb-8">
+          <div className="relative z-10 max-w-2xl mx-auto">
+            <h2 className="text-3xl md:text-5xl font-bold font-[family-name:var(--font-pixel)] mb-6">
               Ready to secure your swarm?
             </h2>
-            <WaitlistForm />
+            <p className="text-gray-400 text-lg mb-10">
+              Join the growing number of organizations trusting Sentrix to keep their 
+              AI agents in check. Deploy your police force today.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <a
+                href="/claw"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-[var(--accent)] text-white font-mono font-semibold rounded-lg hover:shadow-lg hover:shadow-[var(--accent)]/25 transition-all cursor-pointer"
+              >
+                Test Our Product
+              </a>
+              <a
+                href="https://docs.openclaw-sentrix.ai"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-6 py-4 bg-white/5 border border-white/10 text-gray-300 font-mono font-medium rounded-lg hover:bg-white/10 transition-all cursor-pointer"
+              >
+                Read Documentation
+              </a>
+            </div>
+
+            <div className="mt-12">
+              <p className="text-gray-500 text-sm mb-4 font-mono uppercase tracking-widest">
+                Get early access updates
+              </p>
+              <WaitlistForm />
+            </div>
           </div>
         </section>
       </main>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-[var(--pixel-border)] mt-auto py-8 text-center text-gray-500 font-mono text-sm">
-        <p>© {new Date().getFullYear()} Sentrix Swarms. All rights reserved.</p>
-        <div className="mt-4 flex justify-center gap-4">
-          <a href="https://huggingface.co/akoniti/nemotron_3.3_30B_A3B_malicious_message_intent" target="_blank" rel="noopener noreferrer" className="hover:text-[var(--accent)] transition-colors">
-            HuggingFace Models
-          </a>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
