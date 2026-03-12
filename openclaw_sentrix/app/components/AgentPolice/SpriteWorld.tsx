@@ -241,7 +241,7 @@ export default function SpriteWorld({
               setScale(newScale);
             }
           }}
-          className="rounded border border-[#374151] bg-[#1a1f2e] px-2 py-1 text-xs text-white hover:bg-[#2a2f3e]"
+          className="rounded border border-[#374151] bg-[#1a1f2e] px-2 py-1 text-xs text-white hover:bg-[#2a2f3e] cursor-pointer"
         >
           ⌂
         </button>

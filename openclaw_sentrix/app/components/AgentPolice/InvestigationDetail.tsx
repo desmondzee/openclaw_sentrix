@@ -78,9 +78,10 @@ export function InvestigationDetail({ report, onClose }: InvestigationDetailProp
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={onClose}
+      style={{ pointerEvents: 'auto' }}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" style={{ pointerEvents: 'auto' }} />
 
       {/* Modal */}
       <div
@@ -167,7 +168,13 @@ export function InvestigationDetail({ report, onClose }: InvestigationDetailProp
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ maxHeight: 'calc(85vh - 140px)', minHeight: '200px' }}>
+        <div 
+          className="flex-1 overflow-y-auto p-4 space-y-3 overscroll-contain"
+          style={{ 
+            maxHeight: '60vh',
+          }}
+          onWheel={(e) => e.stopPropagation()}
+        >
           {/* Crime Classification */}
           <Card>
             <SectionLabel color="#9b59b6">Classification</SectionLabel>

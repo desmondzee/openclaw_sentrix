@@ -118,11 +118,15 @@ export function InvestigationRegistry({
       </div>
 
       {/* Report list */}
-      <div className="flex-1 overflow-y-auto" style={{ maxHeight: '200px' }}>
+      <div 
+        className="overflow-y-auto overscroll-contain"
+        style={{ maxHeight: '140px' }}
+        onWheel={(e) => e.stopPropagation()}
+      >
         {filteredReports.length === 0 ? (
-          <div className="px-4 py-8 text-center">
+          <div className="px-4 py-3 text-center">
             <p className="text-[11px] text-[#6b7280] font-mono">
-              {filter === 'unviewed' ? 'No unviewed reports' : 'No investigation reports yet'}
+              {filter === 'unviewed' ? 'No unviewed reports' : 'No reports yet'}
             </p>
           </div>
         ) : (
@@ -201,9 +205,9 @@ export function InvestigationRegistry({
         )}
       </div>
 
-      {/* Footer summary */}
-      {reports.length > 0 && (
-        <div className="px-3 py-2 border-t border-[var(--pixel-border)] bg-[#0d1320]">
+      {/* Footer summary - always show for consistent height */}
+      <div className="px-3 py-2 border-t border-[var(--pixel-border)] bg-[#0d1320]">
+        {reports.length > 0 ? (
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1">
@@ -223,8 +227,12 @@ export function InvestigationRegistry({
               {reports.length} total
             </span>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="flex items-center justify-center">
+            <span className="text-[9px] text-[#4b5563] font-mono">Waiting for investigations...</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

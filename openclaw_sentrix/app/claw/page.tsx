@@ -174,9 +174,16 @@ export default function ClawPage() {
       setMessages([]);
       setHasMore(false);
       oldestKeyRef.current = undefined;
+      pendingIdRef.current = null;
+      prevMessageCountRef.current = 0;
       setIsClearModalOpen(false);
-    } catch {
-      // ignore
+      if (typeof window !== "undefined") {
+        console.log("[Claw] Chat history cleared");
+      }
+    } catch (e) {
+      if (typeof window !== "undefined") {
+        console.error("[Claw] Failed to clear chat history:", e);
+      }
     }
   }, []);
 
