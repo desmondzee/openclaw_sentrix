@@ -115,10 +115,9 @@ export function InvestigationRegistry({
         </button>
       </div>
 
-      {/* Report list */}
+      {/* Report list - takes remaining height */}
       <div 
-        className="overflow-y-auto overscroll-contain"
-        style={{ maxHeight: '140px' }}
+        className="flex-1 overflow-y-auto overscroll-contain min-h-0"
         onWheel={(e) => e.stopPropagation()}
       >
         {filteredReports.length === 0 ? (

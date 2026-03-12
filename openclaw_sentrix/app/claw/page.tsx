@@ -763,7 +763,7 @@ export default function ClawPage() {
             </div>
             
             {/* Investigation Registry - 50% height */}
-            <div className="h-1/2 min-h-0 border-t border-[var(--pixel-border)]">
+            <div className="h-1/2 min-h-0 border-t border-[var(--pixel-border)] flex flex-col">
               <InvestigationRegistry
                 reports={reports}
                 selectedId={selectedReportId}
