@@ -69,17 +69,17 @@ export default function SpriteWorld({
       // Get bounds that include both main room and control room
       const bounds = getWorldBounds();
       
-      // Calculate scale to fit everything with padding
-      const paddingX = 80 * 3; // Horizontal padding
-      const paddingY = 60 * 3; // Vertical padding (less needed with proper bounds)
+      // Calculate scale to fit everything with minimal padding
+      const paddingX = 20 * 3; // Minimal horizontal padding
+      const paddingY = 20 * 3; // Minimal vertical padding
       const boundsWidth = bounds.width + paddingX * 2;
       const boundsHeight = bounds.height + paddingY * 2;
       const scaleX = containerWidth / boundsWidth;
       const scaleY = containerHeight / boundsHeight;
-      const fitScale = Math.min(scaleX, scaleY, 1.0); // Cap at 100%
+      const fitScale = Math.min(scaleX, scaleY, 0.9); // Cap at 90%
       
       // Ensure minimum scale so everything is visible
-      const finalScale = Math.max(fitScale, 0.30);
+      const finalScale = Math.max(fitScale, 0.25);
       
       // Calculate pan to center everything
       const centerX = bounds.x + bounds.width / 2;
@@ -93,20 +93,26 @@ export default function SpriteWorld({
     };
     
     // Center immediately
-    const shouldCenter = prevAgentCountRef.current !== agents.length || prevAgentCountRef.current === 0;
-    if (shouldCenter) {
-      centerView();
-    }
+    centerView();
     
     // Also re-center when container size changes (e.g., panel opens)
     const resizeObserver = new ResizeObserver(() => {
-      if (agents.length > 0) {
-        centerView();
-      }
+      centerView();
     });
     resizeObserver.observe(container);
     
-    return () => resizeObserver.disconnect();
+    // Also handle window resize
+    const handleWindowResize = () => centerView();
+    window.addEventListener("resize", handleWindowResize);
+    
+    // Re-center after a short delay to ensure panel animation completes
+    const delayedCenter = setTimeout(centerView, 350);
+    
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", handleWindowResize);
+      clearTimeout(delayedCenter);
+    };
   }, [preloaded, agents]);
 
   const drawBackground = useCallback(
@@ -191,14 +197,14 @@ export default function SpriteWorld({
             if (container) {
               const rect = container.getBoundingClientRect();
               const bounds = getWorldBounds();
-              const paddingX = 80 * 3;
-              const paddingY = 60 * 3;
+              const paddingX = 20 * 3;
+              const paddingY = 20 * 3;
               const newScale = Math.min(
                 Math.max(Math.min(
                   rect.width / (bounds.width + paddingX * 2),
                   rect.height / (bounds.height + paddingY * 2)
-                ), 0.30),
-                1.0
+                ), 0.25),
+                0.9
               );
               const centerX = bounds.x + bounds.width / 2;
               const centerY = bounds.y + bounds.height / 2;

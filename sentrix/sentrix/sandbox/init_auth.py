@@ -35,7 +35,7 @@ PROVIDERS = {
 }
 
 # Model provider configurations per OpenClaw docs (openai, moonshot, minimax).
-# Moonshot: https://docs.openclaw.ai/providers/moonshot — baseUrl api.moonshot.ai/v1, api openai-completions.
+# Moonshot: use api.moonshot.ai/v1 for international keys; api.moonshot.cn/v1 gives 401 for those.
 MODEL_PROVIDER_CONFIG = {
     "minimax": {
         "baseUrl": "https://api.minimax.io/anthropic",
@@ -63,6 +63,13 @@ def _base_dir() -> Path:
     return Path("/home/node/.openclaw")
 
 
+def _normalize_api_key(value: str | None) -> str:
+    """Strip whitespace and newlines; pasted keys often have trailing CR/LF causing 401."""
+    if not value:
+        return ""
+    return value.replace("\r", "").replace("\n", "").strip()
+
+
 def main():
     base = _base_dir()
     agent_dir = base / "agents" / "main" / "agent"
@@ -74,7 +81,8 @@ def main():
     providers_configured = set()  # Track which providers need model config
     
     for env_var, provider_id in PROVIDERS.items():
-        api_key = os.environ.get(env_var)
+        raw = os.environ.get(env_var)
+        api_key = _normalize_api_key(raw) if raw else ""
         if api_key:
             profile_key = f"{provider_id}:default"
             profiles[profile_key] = {
@@ -119,10 +127,11 @@ def main():
         config_data = {}
 
     # Per OpenClaw docs: config can have env: { OPENAI_API_KEY: "sk-..." } so the key is available.
-    # Inject actual env values into config so gateway has them even if process env is lost.
+    # Inject normalized env values (strip CR/LF) so substitution and auth never see trailing newlines → 401.
     config_data.setdefault("env", {})
     for env_var, provider_id in PROVIDERS.items():
-        val = os.environ.get(env_var)
+        raw = os.environ.get(env_var)
+        val = _normalize_api_key(raw) if raw else ""
         if val:
             config_data["env"][env_var] = val
     if config_data["env"]:

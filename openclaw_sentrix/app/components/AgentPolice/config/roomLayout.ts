@@ -8,12 +8,13 @@ const COLS = 4; // 4 columns
 const MAX_AGENTS = 8; // Max 8 agents (2 rows) to fit with furniture
 
 // Margins around the world
-const MARGIN_X = 60 * S;
+const MARGIN_X = 80 * S;
 const MARGIN_Y = 60 * S;
 const GAP_BETWEEN_ROOMS = 40 * S;
 
-// Furniture extends below rooms - extra padding for tables/monitors
-const FURNITURE_BOTTOM_PADDING = 50 * S;
+// Furniture extends beyond room bounds - extra padding
+const FURNITURE_PADDING_X = 60 * S;
+const FURNITURE_PADDING_Y = 60 * S;
 
 export const WORLD_WIDTH = 600 * S + MARGIN_X * 2;
 export const WORLD_HEIGHT = 700 * S + MARGIN_Y * 2;
@@ -102,11 +103,12 @@ export const patrolWaypoints = [
 
 /** Get bounding box that includes both main room and control room with margins and furniture */
 export function getWorldBounds() {
+  // Calculate actual bounds including furniture that extends beyond room rectangles
+  // Tables extend ~35*S to each side of desk, and ~20*S below
   const minX = 0;
   const minY = 0;
-  const maxX = MAIN_ROOM_X + MAIN_ROOM_W + MARGIN_X;
-  // Include extra space for furniture (tables extend below control room)
-  const maxY = CONTROL_ROOM_Y + CONTROL_ROOM_H + MARGIN_Y + FURNITURE_BOTTOM_PADDING;
+  const maxX = MAIN_ROOM_X + MAIN_ROOM_W + MARGIN_X + FURNITURE_PADDING_X;
+  const maxY = CONTROL_ROOM_Y + CONTROL_ROOM_H + MARGIN_Y + FURNITURE_PADDING_Y;
   return {
     x: minX,
     y: minY,

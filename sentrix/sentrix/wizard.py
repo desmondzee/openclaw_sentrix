@@ -400,6 +400,8 @@ def run_setup_wizard() -> tuple[dict[str, str], list[str], bool, str | None, int
 
     # Step 1: Provider + API key
     provider_id, env_var, api_key = _step_provider()
+    # Strip CR/LF and surrounding whitespace; pasted keys often cause 401 (e.g. Moonshot) otherwise
+    api_key = (api_key or "").replace("\r", "").replace("\n", "").strip()
 
     # Step 2: Model
     model_id = _step_model(provider_id)
