@@ -3,11 +3,11 @@
  * control room with investigator home. No quarantine/entertainment.
  */
 const S = 3;
-const COLS = 6;
-const MAX_AGENTS = 24;
+const COLS = 4; // Fewer columns for better fit
+const MAX_AGENTS = 12; // Max 12 agents to fit in room
 
-export const WORLD_WIDTH = 1400 * S;
-export const WORLD_HEIGHT = 1050 * S;
+export const WORLD_WIDTH = 1200 * S;
+export const WORLD_HEIGHT = 900 * S;
 
 export interface DeskPosition {
   agentId: string;
@@ -25,14 +25,15 @@ export interface RoomConfig {
   desks: DeskPosition[];
 }
 
-const MAIN_ROOM_X = 240 * S;
-const MAIN_ROOM_Y = 40 * S;
-const MAIN_ROOM_W = 440 * S;
-const MAIN_ROOM_H = 280 * S;
-const DESK_STEP_X = 120 * S;
-const DESK_STEP_Y = 80 * S;
-const DESK_START_X = MAIN_ROOM_X + 80 * S;
-const DESK_START_Y = MAIN_ROOM_Y + 60 * S;
+// Main room - positioned to fit within view with control room
+const MAIN_ROOM_X = 100 * S;
+const MAIN_ROOM_Y = 60 * S;
+const MAIN_ROOM_W = 500 * S;
+const MAIN_ROOM_H = 320 * S;
+const DESK_STEP_X = 100 * S;
+const DESK_STEP_Y = 70 * S;
+const DESK_START_X = MAIN_ROOM_X + 50 * S;
+const DESK_START_Y = MAIN_ROOM_Y + 50 * S;
 
 const mainRoomDesks: DeskPosition[] = [];
 for (let i = 0; i < MAX_AGENTS; i++) {
@@ -58,12 +59,12 @@ export const rooms: RoomConfig[] = [
 ];
 
 export const controlRoom = {
-  x: 720 * S,
-  y: 380 * S,
-  width: 300 * S,
-  height: 140 * S,
+  x: 650 * S,
+  y: 60 * S,
+  width: 250 * S,
+  height: 200 * S,
   investigatorPositions: [
-    { id: "f1", x: 800 * S, y: 440 * S },
+    { id: "f1", x: 775 * S, y: 160 * S },
   ],
 };
 
@@ -73,6 +74,20 @@ export const patrolWaypoints = [
   { x: MAIN_ROOM_X + MAIN_ROOM_W / 2, y: MAIN_ROOM_Y + 40 * S },
   { x: MAIN_ROOM_X + MAIN_ROOM_W / 2, y: MAIN_ROOM_Y + MAIN_ROOM_H - 40 * S },
 ];
+
+/** Get bounding box that includes both main room and control room */
+export function getWorldBounds() {
+  const minX = Math.min(MAIN_ROOM_X, controlRoom.x);
+  const minY = Math.min(MAIN_ROOM_Y, controlRoom.y);
+  const maxX = Math.max(MAIN_ROOM_X + MAIN_ROOM_W, controlRoom.x + controlRoom.width);
+  const maxY = Math.max(MAIN_ROOM_Y + MAIN_ROOM_H, controlRoom.y + controlRoom.height);
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+  };
+}
 
 /** Get desk position for an agent by index in the agents array. */
 export function getAgentDeskPosition(

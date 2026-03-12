@@ -8,12 +8,18 @@ the auth-profiles.json format expected by OpenClaw.
 
 Some providers (like minimax, kimi/moonshot) also require model configuration
 in openclaw.json to specify baseUrl, api type, and model definitions.
+
+Auth store path: OpenClaw resolves auth per agent. This script MUST write to
+/home/node/.openclaw/agents/main/agent/auth-profiles.json so the "main" agent
+finds the keys. Provider IDs here must match wizard.py and the model string prefix
+(e.g. "openai" for "openai/gpt-5.4").
 """
 
 import json
 import os
 from pathlib import Path
 
+# Env var -> provider ID. IDs must match wizard.py PROVIDERS[].id and model prefix (e.g. openai/gpt-5.4).
 PROVIDERS = {
     "ANTHROPIC_API_KEY": "anthropic",
     "OPENAI_API_KEY": "openai",
@@ -58,10 +64,19 @@ MODEL_PROVIDER_CONFIG = {
     },
 }
 
+def _base_dir() -> Path:
+    """Base dir for OpenClaw config (allow override for tests)."""
+    override = os.environ.get("SENTRIX_INIT_AUTH_BASE_DIR")
+    if override:
+        return Path(override)
+    return Path("/home/node/.openclaw")
+
+
 def main():
-    agent_dir = Path("/home/node/.openclaw/agents/main/agent")
+    base = _base_dir()
+    agent_dir = base / "agents" / "main" / "agent"
     agent_dir.mkdir(parents=True, exist_ok=True)
-    
+
     auth_path = agent_dir / "auth-profiles.json"
     
     profiles = {}
@@ -101,7 +116,7 @@ def main():
     print(f"[sentrix/init_auth] Initialized {len(profiles)} auth profiles for OpenClaw main agent.")
 
     # Load or create openclaw config
-    openclaw_config_path = Path("/home/node/.openclaw/openclaw.json")
+    openclaw_config_path = base / "openclaw.json"
     try:
         if openclaw_config_path.exists():
             config_data = json.loads(openclaw_config_path.read_text("utf-8"))
@@ -139,18 +154,48 @@ def main():
             }
             print(f"[sentrix/init_auth] Added model provider config for: {provider_id}")
 
-    # Also inject the default model if present
+    # Set default model so OpenClaw uses the wizard-selected provider (path: agents.defaults.model.primary).
+    # Also set agents.list with an explicit "main" entry so the default agent has the model even when
+    # no other agents are defined (avoids relying solely on defaults merge in all code paths).
     default_model = os.environ.get("OPENCLAW_DEFAULT_MODEL")
     if default_model:
-        config_data.setdefault("agents", {}).setdefault("defaults", {})["model"] = {"primary": default_model}
+        config_data.setdefault("agents", {})
+        config_data["agents"].setdefault("defaults", {})["model"] = {"primary": default_model}
+        # Explicit main agent entry so resolveAgentConfig(cfg, "main") returns this model.
+        if "list" not in config_data["agents"] or not config_data["agents"]["list"]:
+            config_data["agents"]["list"] = [
+                {"id": "main", "default": True, "model": {"primary": default_model}}
+            ]
+        # Set auth.order for the selected provider so OpenClaw uses our profile (e.g. openai:default).
+        try:
+            provider_from_model = default_model.split("/", 1)[0].strip().lower() if "/" in default_model else ""
+            if provider_from_model and provider_from_model in providers_configured:
+                config_data.setdefault("auth", {})
+                config_data["auth"].setdefault("order", {})
+                profile_id = f"{provider_from_model}:default"
+                config_data["auth"]["order"][provider_from_model] = [profile_id]
+                print(f"[sentrix/init_auth] Set auth.order.{provider_from_model} = [{profile_id!r}]")
+        except Exception as e:
+            print(f"[sentrix/init_auth] Warning: could not set auth.order: {e}")
         print(f"[sentrix/init_auth] Set OpenClaw default model to: {default_model}")
-    
+
     # Write the updated config
     try:
         openclaw_config_path.write_text(json.dumps(config_data, indent=2), "utf-8")
         print(f"[sentrix/init_auth] Updated openclaw.json with model provider configs")
     except Exception as e:
         print(f"[sentrix/init_auth] Warning: could not write openclaw.json: {e}")
+
+    # Verbose: print what was written so host/sync can verify provider and model.
+    print(f"[sentrix/init_auth] Auth store path: {auth_path}")
+    print(f"[sentrix/init_auth] Profile keys: {list(auth_data.get('profiles', {}).keys())}")
+    agents_defaults = config_data.get("agents", {}).get("defaults", {})
+    model_cfg = agents_defaults.get("model") if isinstance(agents_defaults, dict) else None
+    if model_cfg:
+        primary = model_cfg.get("primary") if isinstance(model_cfg, dict) else None
+        print(f"[sentrix/init_auth] openclaw.json agents.defaults.model.primary: {primary}")
+    else:
+        print("[sentrix/init_auth] openclaw.json agents.defaults.model: (not set)")
 
 if __name__ == "__main__":
     main()

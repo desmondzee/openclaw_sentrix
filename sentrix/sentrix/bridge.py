@@ -69,16 +69,25 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict
     if not json_files:
         return []
     
-    # Consider logs from last 30 minutes to only show active agents
-    cutoff_time = (datetime.now(timezone.utc) - timedelta(minutes=30)).timestamp() * 1000
+    # Only use the most recent log file to avoid stale data from previous sessions
+    json_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    
+    # Main agent: consider logs from last 30 minutes
+    main_cutoff_time = (datetime.now(timezone.utc) - timedelta(minutes=30)).timestamp() * 1000
+    # Subagents: only consider recent activity (5 minutes) since they complete faster
+    subagent_cutoff_time = (datetime.now(timezone.utc) - timedelta(minutes=5)).timestamp() * 1000
     
     # Collect all sessionKeys with their latest activity and a sample runId
     session_activity: dict[str, dict] = {}  # sessionKey -> {last_ts, run_id, is_subagent}
     
-    for log_file in json_files:
-        # Skip older files based on mtime for efficiency
+    now_ts = datetime.now(timezone.utc).timestamp() * 1000
+    
+    # Only process the most recent log file
+    for log_file in json_files[:1]:
+        # Skip if file is too old
         file_mtime = log_file.stat().st_mtime * 1000
-        if file_mtime < cutoff_time:
+        if file_mtime < main_cutoff_time:
+            logger.debug(f"[get_agents] Skipping old log file: {log_file.name}")
             continue
             
         try:
@@ -88,14 +97,13 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict
         if not isinstance(raw, list):
             continue
             
+        logger.debug(f"[get_agents] Processing log file: {log_file.name} ({len(raw)} entries)")
+        
         for obj in raw:
             if not isinstance(obj, dict):
                 continue
             ts = obj.get("ts")
             if not isinstance(ts, (int, float)):
-                continue
-            # Only consider recent activity
-            if ts < cutoff_time:
                 continue
             
             # Use sessionKey if available, fall back to runId
@@ -114,18 +122,14 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict
                 # This indicates a subagent spawn announcement
                 if run_id.startswith("announce:v1:") and ":subagent:" in run_id:
                     # Parse out the subagent session key
-                    # Format: announce:v1:{session_key}:{run_id_suffix}
                     parts = run_id.split(":")
                     if len(parts) >= 5:
-                        # Reconstruct session key from parts (skip 'announce', 'v1')
-                        # parts[2:] up to finding the pattern
                         subagent_idx = -1
                         for i, p in enumerate(parts):
                             if p == "subagent" and i > 0:
                                 subagent_idx = i
                                 break
                         if subagent_idx > 0:
-                            # Session key is everything from parts[2] to subagent_idx+2 (includes uuid)
                             extracted_session_key = ":".join(parts[2:subagent_idx+2])
                             key = extracted_session_key
                             is_subagent = True
@@ -138,6 +142,11 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict
                     key = run_id
                     is_runid_fallback = True
             else:
+                continue
+            
+            # Apply appropriate cutoff based on agent type
+            cutoff = subagent_cutoff_time if is_subagent else main_cutoff_time
+            if ts < cutoff:
                 continue
             
             # Track the most recent activity for each session
@@ -190,6 +199,7 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict
     # Only add subagents if we have real sessionKeys (not just runId fallbacks)
     # Without sessionKey, we cannot distinguish subagents from different runs of the same agent
     if has_real_session_keys:
+        logger.debug(f"[get_agents] has_real_session_keys=True, adding {len(subagent_sessions[:max_subagents])} subagents")
         for i, (session_key, data) in enumerate(subagent_sessions[:max_subagents]):
             agents.append({
                 "id": data["run_id"],
@@ -199,7 +209,10 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict
                 "riskScore": "normal",
                 "sessionKey": session_key,
             })
+    else:
+        logger.debug(f"[get_agents] has_real_session_keys=False, main_sessions={len(main_sessions)}, subagent_sessions={len(subagent_sessions)}")
     
+    logger.debug(f"[get_agents] Returning {len(agents)} agents: {[a['name'] for a in agents]}")
     return agents
 
 

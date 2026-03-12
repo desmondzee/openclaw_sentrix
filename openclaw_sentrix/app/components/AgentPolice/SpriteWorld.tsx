@@ -11,7 +11,7 @@ import type {
 } from "./types";
 import { WORLD_COLORS } from "./config/spriteConfig";
 import { preloadEssentialSprites, preloadAllSprites } from "./hooks/spriteLoader";
-import { WORLD_WIDTH, WORLD_HEIGHT, rooms } from "./config/roomLayout";
+import { WORLD_WIDTH, WORLD_HEIGHT, getWorldBounds } from "./config/roomLayout";
 import { FloorLayer } from "./layers/FloorLayer";
 import { EntityLayer } from "./layers/EntityLayer";
 import { EffectsLayer } from "./layers/EffectsLayer";
@@ -65,20 +65,23 @@ export default function SpriteWorld({
       // Skip if container has no size yet
       if (containerWidth === 0 || containerHeight === 0) return;
       
-      // Calculate scale to fit the main room with some padding
-      const padding = 100;
-      const roomWidth = rooms[0].width + padding * 2;
-      const roomHeight = rooms[0].height + padding * 2;
-      const scaleX = containerWidth / roomWidth;
-      const scaleY = containerHeight / roomHeight;
-      const fitScale = Math.min(scaleX, scaleY, 1); // Cap at 1 (100%)
+      // Get bounds that include both main room and control room
+      const bounds = getWorldBounds();
       
-      // Ensure minimum scale so agents are visible
-      const finalScale = Math.max(fitScale, 0.4);
+      // Calculate scale to fit everything with some padding
+      const padding = 60 * 3; // 60px padding at scale 3
+      const boundsWidth = bounds.width + padding * 2;
+      const boundsHeight = bounds.height + padding * 2;
+      const scaleX = containerWidth / boundsWidth;
+      const scaleY = containerHeight / boundsHeight;
+      const fitScale = Math.min(scaleX, scaleY, 1.2); // Cap at 120%
       
-      // Calculate pan to center the main room
-      const centerX = rooms[0].x + rooms[0].width / 2;
-      const centerY = rooms[0].y + rooms[0].height / 2;
+      // Ensure minimum scale so everything is visible
+      const finalScale = Math.max(fitScale, 0.35);
+      
+      // Calculate pan to center everything
+      const centerX = bounds.x + bounds.width / 2;
+      const centerY = bounds.y + bounds.height / 2;
       const panX = containerWidth / 2 - centerX * finalScale;
       const panY = containerHeight / 2 - centerY * finalScale;
       
@@ -178,12 +181,17 @@ export default function SpriteWorld({
             const container = containerRef.current;
             if (container) {
               const rect = container.getBoundingClientRect();
-              const centerX = rooms[0].x + rooms[0].width / 2;
-              const centerY = rooms[0].y + rooms[0].height / 2;
+              const bounds = getWorldBounds();
+              const padding = 60 * 3;
               const newScale = Math.min(
-                Math.max(Math.min(rect.width / (rooms[0].width + 200), rect.height / (rooms[0].height + 200)), 0.4),
-                1
+                Math.max(Math.min(
+                  rect.width / (bounds.width + padding),
+                  rect.height / (bounds.height + padding)
+                ), 0.35),
+                1.2
               );
+              const centerX = bounds.x + bounds.width / 2;
+              const centerY = bounds.y + bounds.height / 2;
               setPan({
                 x: rect.width / 2 - centerX * newScale,
                 y: rect.height / 2 - centerY * newScale,
