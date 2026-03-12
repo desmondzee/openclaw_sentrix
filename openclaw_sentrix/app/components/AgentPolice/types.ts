@@ -18,6 +18,8 @@ export interface PatrolSelection {
 export interface PatrolResponseProps {
   respondingPatrolId: "p1" | "p2" | null;
   patrolTargetPos: { x: number; y: number } | null;
+  /** Second patrol position for swarm effect */
+  patrol2TargetPos?: { x: number; y: number } | null;
   onPatrolArrived: () => void;
   onPatrolReturnArrived: () => void;
   investigatorTargetPos: { x: number; y: number } | null;

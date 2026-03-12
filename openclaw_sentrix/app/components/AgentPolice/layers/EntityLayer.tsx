@@ -30,7 +30,9 @@ export function EntityLayer({
   flaggedAgentId: propFlaggedAgentId,
 }: EntityLayerProps) {
   // Use flagged agent from response if available, otherwise from props
+  // Agent stays red during both patrol swarm AND investigator phases
   const flaggedAgentId = response?.flaggedAgentId ?? propFlaggedAgentId;
+  
   // Sort agents so main agent is first, then subagents
   const sortedAgents = useMemo(() => {
     return [...agents].sort((a, b) => {
@@ -73,48 +75,56 @@ export function EntityLayer({
     return sprites;
   }, [selectedAgentId, onSelectAgent, getAgentStatus, sortedAgents, flaggedAgentId]);
 
-  const isResponseActive =
-    response &&
-    response.respondingPatrolId !== null &&
-    response.phase !== "idle";
-
-  // Swarm effect: both patrols go to the scene with different offsets
-  // p1 goes to left side (-80), p2 goes to right side (+80) of flagged agent
-  const p1TargetPos = isResponseActive
-    ? { 
-        x: (response.patrolTargetPos?.x ?? 0) - 60, 
-        y: response.patrolTargetPos?.y ?? 0 
-      }
-    : null;
-  const p2TargetPos = isResponseActive
-    ? { 
-        x: (response.patrolTargetPos?.x ?? 0) + 140, // opposite side
-        y: response.patrolTargetPos?.y ?? 0 
-      }
-    : null;
+  // Determine which phase we're in
+  const phase = response?.phase ?? "idle";
+  const isResponseActive = phase !== "idle";
   
-  const p1ArrivedCb =
-    isResponseActive && response.respondingPatrolId === "p1"
-      ? response.phase === "returning"
-        ? response.onPatrolReturnArrived
-        : response.onPatrolArrived
-      : () => {};
-  const p2ArrivedCb =
-    isResponseActive && response.respondingPatrolId === "p2"
-      ? response.phase === "returning"
-        ? response.onPatrolReturnArrived
-        : response.onPatrolArrived
-      : () => {};
-
-  const investigatorTargetPos = isResponseActive
-    ? response.investigatorTargetPos
+  // Patrol targets based on phase:
+  // - patrol_swarming: both patrols at agent
+  // - patrol_returning: both patrols going home
+  // - investigator_*: patrols on normal patrol (no target)
+  const isPatrolPhase = phase === "patrol_swarming" || phase === "patrol_returning";
+  
+  // Patrol 1 target position
+  const p1TargetPos = isPatrolPhase && response?.patrolTargetPos
+    ? response.patrolTargetPos
     : null;
-  const onInvestigatorArrived =
-    isResponseActive
-      ? response.phase === "returning"
-        ? response.onInvestigatorReturnArrived
-        : response.onInvestigatorArrived
-      : undefined;
+    
+  // Patrol 2 target position (only during swarm phase)
+  const p2TargetPos = phase === "patrol_swarming" && response?.patrol2TargetPos
+    ? response.patrol2TargetPos
+    : phase === "patrol_returning" 
+      ? null // p2 just resumes normal patrol
+      : null;
+  
+  // Patrol callbacks - only trigger during patrol phases
+  const p1ArrivedCb = isPatrolPhase
+    ? (phase === "patrol_returning"
+      ? response?.onPatrolReturnArrived
+      : response?.onPatrolArrived) ?? (() => {})
+    : () => {};
+    
+  const p2ArrivedCb = isPatrolPhase
+    ? (phase === "patrol_returning"
+      ? response?.onPatrolReturnArrived
+      : response?.onPatrolArrived) ?? (() => {})
+    : () => {};
+
+  // Investigator target based on phase:
+  // - investigator_moving: going to agent
+  // - investigating: at agent
+  // - investigator_returning: going home
+  const isInvestigatorPhase = phase === "investigator_moving" || phase === "investigating" || phase === "investigator_returning";
+  
+  const investigatorTargetPos = isInvestigatorPhase
+    ? response?.investigatorTargetPos
+    : null;
+    
+  const onInvestigatorArrived = isInvestigatorPhase
+    ? (phase === "investigator_returning"
+      ? response?.onInvestigatorReturnArrived
+      : response?.onInvestigatorArrived) ?? (() => {})
+    : () => {};
 
   return (
     <pixiContainer>

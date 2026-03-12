@@ -58,6 +58,7 @@ export function SpriteView({ policeState }: SpriteViewProps) {
     return {
       respondingPatrolId: responseState.respondingPatrolId,
       patrolTargetPos: responseState.patrolTargetPos,
+      patrol2TargetPos: responseState.patrol2TargetPos,
       onPatrolArrived: responseState.onPatrolArrived,
       onPatrolReturnArrived: responseState.onPatrolReturnArrived,
       investigatorTargetPos: responseState.investigatorTargetPos,
