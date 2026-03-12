@@ -20,6 +20,7 @@ import os
 from pathlib import Path
 
 # Env var -> provider ID. IDs must match wizard.py PROVIDERS[].id and model prefix (e.g. openai/gpt-5.4).
+# Kimi Coding removed per docs: use Moonshot AI (moonshot) for Kimi models.
 PROVIDERS = {
     "ANTHROPIC_API_KEY": "anthropic",
     "OPENAI_API_KEY": "openai",
@@ -31,12 +32,10 @@ PROVIDERS = {
     "TOGETHER_API_KEY": "together",
     "MINIMAX_API_KEY": "minimax",
     "MOONSHOT_API_KEY": "moonshot",
-    "KIMI_API_KEY": "kimi-coding",
-    "KIMICODE_API_KEY": "kimi-coding",
 }
 
-# Model provider configurations that require extra config in openclaw.json
-# These providers need baseUrl, api type, and model definitions
+# Model provider configurations per OpenClaw docs (openai, moonshot, minimax).
+# Moonshot: https://docs.openclaw.ai/providers/moonshot — baseUrl api.moonshot.ai/v1, api openai-completions.
 MODEL_PROVIDER_CONFIG = {
     "minimax": {
         "baseUrl": "https://api.minimax.io/anthropic",
@@ -47,18 +46,10 @@ MODEL_PROVIDER_CONFIG = {
         ],
     },
     "moonshot": {
-        "baseUrl": "https://api.moonshot.cn/v1",
-        "api": "openai",
+        "baseUrl": "https://api.moonshot.ai/v1",
+        "api": "openai-completions",
         "models": [
-            {"id": "kimi-k2.5", "name": "Kimi K2.5", "reasoning": True, "contextWindow": 256000, "maxTokens": 8192},
-            {"id": "kimi-k2-thinking", "name": "Kimi K2 Thinking", "reasoning": True, "contextWindow": 256000, "maxTokens": 8192},
-        ],
-    },
-    "kimi-coding": {
-        "baseUrl": "https://api.moonshot.cn/v1",
-        "api": "openai",
-        "models": [
-            {"id": "kimi-k2.5", "name": "Kimi K2.5", "reasoning": True, "contextWindow": 256000, "maxTokens": 8192},
+            {"id": "kimi-k2.5", "name": "Kimi K2.5", "reasoning": False, "contextWindow": 256000, "maxTokens": 8192},
             {"id": "kimi-k2-thinking", "name": "Kimi K2 Thinking", "reasoning": True, "contextWindow": 256000, "maxTokens": 8192},
         ],
     },
@@ -127,24 +118,27 @@ def main():
         print(f"[sentrix/init_auth] Warning: could not read existing openclaw.json: {e}")
         config_data = {}
 
-    # Add model provider configurations for providers that need them
+    # Per OpenClaw docs: config can have env: { OPENAI_API_KEY: "sk-..." } so the key is available.
+    # Inject actual env values into config so gateway has them even if process env is lost.
+    config_data.setdefault("env", {})
+    for env_var, provider_id in PROVIDERS.items():
+        val = os.environ.get(env_var)
+        if val:
+            config_data["env"][env_var] = val
+    if config_data["env"]:
+        print(f"[sentrix/init_auth] Set config env for: {list(config_data['env'].keys())}")
+
+    # Add model provider configurations for providers that need them (Moonshot, Minimax per docs)
     for provider_id in providers_configured:
         if provider_id in MODEL_PROVIDER_CONFIG:
             model_config = MODEL_PROVIDER_CONFIG[provider_id]
-            # Set up env var for the API key
             if provider_id == "minimax":
                 env_key = "MINIMAX_API_KEY"
             elif provider_id == "moonshot":
                 env_key = "MOONSHOT_API_KEY"
-            elif provider_id == "kimi-coding":
-                env_key = "KIMI_API_KEY"
             else:
-                env_key = f"{provider_id.upper()}_API_KEY"
-            
-            # Update env section
-            config_data.setdefault("env", {})[env_key] = f"${{{env_key}}}"
-            
-            # Update models section with provider config
+                env_key = f"{provider_id.upper().replace('-', '_')}_API_KEY"
+
             config_data.setdefault("models", {}).setdefault("mode", "merge")
             config_data["models"].setdefault("providers", {})[provider_id] = {
                 "baseUrl": model_config["baseUrl"],

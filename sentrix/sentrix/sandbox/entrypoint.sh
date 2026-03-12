@@ -23,7 +23,21 @@ cleanup() {
 
 trap cleanup SIGTERM SIGINT
 
-/opt/sentrix/init_auth.py || true
+# Debug: confirm env is available (redacted)
+if [ -n "${OPENCLAW_DEFAULT_MODEL:-}" ]; then
+  echo "[sentrix] OPENCLAW_DEFAULT_MODEL=${OPENCLAW_DEFAULT_MODEL}" >&2
+fi
+for v in OPENAI_API_KEY ANTHROPIC_API_KEY MINIMAX_API_KEY MOONSHOT_API_KEY GEMINI_API_KEY; do
+  if [ -n "${!v:-}" ]; then
+    echo "[sentrix] ${v} is set (len=${#!v})" >&2
+  fi
+done
+
+# Must run before gateway so auth-profiles.json and openclaw.json are ready
+if ! /opt/sentrix/init_auth.py; then
+  echo "[sentrix] init_auth.py failed (check env and paths above)" >&2
+  exit 1
+fi
 
 openclaw gateway run \
     --raw-stream \

@@ -69,16 +69,17 @@ export default function SpriteWorld({
       // Get bounds that include both main room and control room
       const bounds = getWorldBounds();
       
-      // Calculate scale to fit everything with some padding
-      const padding = 60 * 3; // 60px padding at scale 3
-      const boundsWidth = bounds.width + padding * 2;
-      const boundsHeight = bounds.height + padding * 2;
+      // Calculate scale to fit everything with padding
+      const paddingX = 80 * 3; // Horizontal padding
+      const paddingY = 60 * 3; // Vertical padding (less needed with proper bounds)
+      const boundsWidth = bounds.width + paddingX * 2;
+      const boundsHeight = bounds.height + paddingY * 2;
       const scaleX = containerWidth / boundsWidth;
       const scaleY = containerHeight / boundsHeight;
-      const fitScale = Math.min(scaleX, scaleY, 1.2); // Cap at 120%
+      const fitScale = Math.min(scaleX, scaleY, 1.0); // Cap at 100%
       
       // Ensure minimum scale so everything is visible
-      const finalScale = Math.max(fitScale, 0.35);
+      const finalScale = Math.max(fitScale, 0.30);
       
       // Calculate pan to center everything
       const centerX = bounds.x + bounds.width / 2;
@@ -190,13 +191,14 @@ export default function SpriteWorld({
             if (container) {
               const rect = container.getBoundingClientRect();
               const bounds = getWorldBounds();
-              const padding = 60 * 3;
+              const paddingX = 80 * 3;
+              const paddingY = 60 * 3;
               const newScale = Math.min(
                 Math.max(Math.min(
-                  rect.width / (bounds.width + padding),
-                  rect.height / (bounds.height + padding)
-                ), 0.35),
-                1.2
+                  rect.width / (bounds.width + paddingX * 2),
+                  rect.height / (bounds.height + paddingY * 2)
+                ), 0.30),
+                1.0
               );
               const centerX = bounds.x + bounds.width / 2;
               const centerY = bounds.y + bounds.height / 2;

@@ -50,6 +50,8 @@ def test_init_auth_openai_provider_and_default_model(tmp_path: Path) -> None:
     assert main_entry.get("model", {}).get("primary") == "openai/gpt-5.4"
     # auth.order tells OpenClaw which profile to use for this provider
     assert config.get("auth", {}).get("order", {}).get("openai") == ["openai:default"]
+    # Config env should contain the key so gateway has it (per OpenClaw docs)
+    assert config.get("env", {}).get("OPENAI_API_KEY") == "sk-test-key"
 
 
 def test_init_auth_minimax_provider_and_default_model(tmp_path: Path) -> None:

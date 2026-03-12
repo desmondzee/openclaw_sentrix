@@ -30,8 +30,7 @@ PROVIDERS = [
     {"id": "groq", "name": "Groq", "env": "GROQ_API_KEY", "hint": "Fast inference"},
     {"id": "together", "name": "Together AI", "env": "TOGETHER_API_KEY", "hint": "Open-source models"},
     {"id": "minimax", "name": "MiniMax", "env": "MINIMAX_API_KEY", "hint": "MiniMax M2.5 models"},
-    {"id": "moonshot", "name": "Moonshot AI", "env": "MOONSHOT_API_KEY", "hint": "Kimi models"},
-    {"id": "kimi-coding", "name": "Kimi Coding", "env": "KIMI_API_KEY", "hint": "Kimi K2.5 coding models"},
+    {"id": "moonshot", "name": "Moonshot AI", "env": "MOONSHOT_API_KEY", "hint": "Kimi models (Moonshot API)"},
 ]
 
 MODELS_BY_PROVIDER: dict[str, list[dict[str, str]]] = {
@@ -78,10 +77,6 @@ MODELS_BY_PROVIDER: dict[str, list[dict[str, str]]] = {
     "moonshot": [
         {"id": "moonshot/kimi-k2.5", "name": "Kimi K2.5 (recommended)"},
         {"id": "moonshot/kimi-k2-thinking", "name": "Kimi K2 Thinking"},
-    ],
-    "kimi-coding": [
-        {"id": "kimi-coding/kimi-k2.5", "name": "Kimi K2.5 (recommended)"},
-        {"id": "kimi-coding/kimi-k2-thinking", "name": "Kimi K2 Thinking"},
     ],
 }
 

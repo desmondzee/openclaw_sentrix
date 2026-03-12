@@ -4,13 +4,16 @@
  * Layout: Vertical stack with control room below main room, with proper margins.
  */
 const S = 3;
-const COLS = 4; // Fewer columns for better fit
-const MAX_AGENTS = 12; // Max 12 agents to fit in room
+const COLS = 4; // 4 columns
+const MAX_AGENTS = 8; // Max 8 agents (2 rows) to fit with furniture
 
 // Margins around the world
 const MARGIN_X = 60 * S;
-const MARGIN_Y = 50 * S;
-const GAP_BETWEEN_ROOMS = 30 * S;
+const MARGIN_Y = 60 * S;
+const GAP_BETWEEN_ROOMS = 40 * S;
+
+// Furniture extends below rooms - extra padding for tables/monitors
+const FURNITURE_BOTTOM_PADDING = 50 * S;
 
 export const WORLD_WIDTH = 600 * S + MARGIN_X * 2;
 export const WORLD_HEIGHT = 700 * S + MARGIN_Y * 2;
@@ -36,14 +39,14 @@ export interface RoomConfig {
 
 // Main room - at the top with margins
 const MAIN_ROOM_W = 480 * S;
-const MAIN_ROOM_H = 300 * S;
+const MAIN_ROOM_H = 260 * S; // Reduced height for 2 rows instead of 3
 const MAIN_ROOM_X = MARGIN_X;
 const MAIN_ROOM_Y = MARGIN_Y;
 
 const DESK_STEP_X = 100 * S;
-const DESK_STEP_Y = 70 * S;
+const DESK_STEP_Y = 80 * S; // Slightly more vertical spacing
 const DESK_START_X = MAIN_ROOM_X + 40 * S;
-const DESK_START_Y = MAIN_ROOM_Y + 45 * S;
+const DESK_START_Y = MAIN_ROOM_Y + 55 * S;
 
 const mainRoomDesks: DeskPosition[] = [];
 for (let i = 0; i < MAX_AGENTS; i++) {
@@ -97,12 +100,13 @@ export const patrolWaypoints = [
   { x: MAIN_ROOM_X + MAIN_ROOM_W / 2, y: MAIN_ROOM_Y + MAIN_ROOM_H - 40 * S },
 ];
 
-/** Get bounding box that includes both main room and control room with margins */
+/** Get bounding box that includes both main room and control room with margins and furniture */
 export function getWorldBounds() {
   const minX = 0;
   const minY = 0;
   const maxX = MAIN_ROOM_X + MAIN_ROOM_W + MARGIN_X;
-  const maxY = CONTROL_ROOM_Y + CONTROL_ROOM_H + MARGIN_Y;
+  // Include extra space for furniture (tables extend below control room)
+  const maxY = CONTROL_ROOM_Y + CONTROL_ROOM_H + MARGIN_Y + FURNITURE_BOTTOM_PADDING;
   return {
     x: minX,
     y: minY,
