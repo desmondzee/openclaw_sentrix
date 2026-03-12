@@ -47,6 +47,18 @@ export const SPRITE_SHEETS = {
   patrol: "/assets/patrol.png",
 } as const;
 
+export const FURNITURE_SPRITES = {
+  table: "/sprites/table.png",
+  chair: "/sprites/chair.png",
+  monitor: "/sprites/monitor-rear.png",
+} as const;
+
+export const FURNITURE_SIZES = {
+  table: { width: 70, height: 40 },
+  chair: { width: 30, height: 30 },
+  monitor: { width: 32, height: 24 },
+};
+
 export const SPRITE_FRAMES = {
   FRONT: 0,
   BACK: 1,

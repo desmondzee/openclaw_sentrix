@@ -19,6 +19,9 @@ export interface DeskPosition {
   agentId: string;
   x: number;
   y: number;
+  /** Where the agent sits (at the chair) - same as x,y for now */
+  seatX: number;
+  seatY: number;
 }
 
 export interface RoomConfig {
@@ -46,10 +49,16 @@ const mainRoomDesks: DeskPosition[] = [];
 for (let i = 0; i < MAX_AGENTS; i++) {
   const col = i % COLS;
   const row = Math.floor(i / COLS);
+  const deskX = DESK_START_X + col * DESK_STEP_X;
+  const deskY = DESK_START_Y + row * DESK_STEP_Y;
+  // Agent sits at the chair (slightly behind the desk center)
+  const seatY = deskY + 12; // Slight offset for seated position
   mainRoomDesks.push({
     agentId: `slot-${i}`,
-    x: DESK_START_X + col * DESK_STEP_X,
-    y: DESK_START_Y + row * DESK_STEP_Y,
+    x: deskX,
+    y: deskY,
+    seatX: deskX,
+    seatY: seatY,
   });
 }
 
@@ -102,7 +111,9 @@ export function getWorldBounds() {
   };
 }
 
-/** Get desk position for an agent by index in the agents array. */
+/** Get desk/seat position for an agent by index in the agents array.
+ * Returns the seat position where the agent should be positioned (at the chair).
+ */
 export function getAgentDeskPosition(
   agentId: string,
   agents: Array<{ id: string }>
@@ -110,7 +121,8 @@ export function getAgentDeskPosition(
   const idx = agents.findIndex((a) => a.id === agentId);
   if (idx < 0 || idx >= rooms[0].desks.length) return null;
   const desk = rooms[0].desks[idx];
-  return { x: desk.x, y: desk.y };
+  // Return seat position (where agent sits at the chair)
+  return { x: desk.seatX, y: desk.seatY };
 }
 
 /** Simple straight-line path (no nav graph). */

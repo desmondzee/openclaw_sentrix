@@ -343,6 +343,75 @@ async def _wait_for_gateway(
     print("[sentrix] warning: gateway did not become ready in time, continuing anyway...")
 
 
+def _redact_auth_profiles(data: dict) -> dict:
+    """Redact API keys in auth-profiles.json for verbose dump."""
+    if not isinstance(data, dict):
+        return data
+    out = {}
+    for k, v in data.items():
+        if k == "profiles" and isinstance(v, dict):
+            out[k] = {}
+            for pid, p in v.items():
+                if isinstance(p, dict):
+                    redacted = dict(p)
+                    if "key" in redacted and redacted["key"]:
+                        redacted["key"] = f"{str(redacted['key'])[:4]}...{str(redacted['key'])[-4:]}"
+                    if "token" in redacted and redacted["token"]:
+                        redacted["token"] = "***"
+                    out[k][pid] = redacted
+                else:
+                    out[k][pid] = p
+        else:
+            out[k] = _redact_auth_profiles(v) if isinstance(v, dict) else v
+    return out
+
+
+def _redact_openclaw_config(data: dict) -> dict:
+    """Redact apiKey/token in openclaw.json for verbose dump."""
+    if not isinstance(data, dict):
+        return data
+    out = {}
+    for k, v in data.items():
+        if k in ("apiKey", "token", "password") and isinstance(v, str) and v:
+            out[k] = f"{v[:4]}...{v[-4:]}" if len(v) > 8 else "***"
+        elif isinstance(v, dict):
+            out[k] = _redact_openclaw_config(v)
+        elif isinstance(v, list):
+            out[k] = [_redact_openclaw_config(i) if isinstance(i, dict) else i for i in v]
+        else:
+            out[k] = v
+    return out
+
+
+async def _verbose_sandbox_debug(sandbox: Sandbox) -> None:
+    """Dump auth-profiles.json and openclaw.json from sandbox (redacted) for debugging."""
+    auth_path = "/home/node/.openclaw/agents/main/agent/auth-profiles.json"
+    config_path = "/home/node/.openclaw/openclaw.json"
+    print("\n[verbose] ---------- OpenClaw state inside sandbox ----------")
+    for label, path in [("auth-profiles.json", auth_path), ("openclaw.json", config_path)]:
+        try:
+            result = await sandbox.commands.run(f"cat {path} 2>/dev/null || true")
+            raw = ""
+            if hasattr(result, "logs") and result.logs.stdout:
+                raw = "\n".join(getattr(m, "text", str(m)) for m in result.logs.stdout)
+            if not raw.strip():
+                print(f"[verbose] {label}: (missing or empty)")
+                continue
+            data = json.loads(raw)
+            if label == "auth-profiles.json":
+                data = _redact_auth_profiles(data)
+            else:
+                data = _redact_openclaw_config(data)
+            print(f"[verbose] {label}:")
+            print(json.dumps(data, indent=2))
+        except json.JSONDecodeError as e:
+            print(f"[verbose] {label}: (invalid JSON: {e})")
+            print(raw[:500])
+        except Exception as e:
+            print(f"[verbose] {label}: (error: {e})")
+    print("[verbose] ---------- end OpenClaw state ----------\n")
+
+
 SANDBOX_ID_FILENAME = ".sentrix_sandbox_id"
 
 
@@ -448,6 +517,10 @@ async def run_sandbox(
 
     # Wait for gateway to be healthy (entrypoint starts gateway + collector immediately)
     await _wait_for_gateway(sandbox, config.port)
+
+    # Verbose: dump auth and openclaw config from sandbox so we can see what OpenClaw sees
+    if config.verbose:
+        await _verbose_sandbox_debug(sandbox)
 
     # Channel login after gateway is up (stream stdout so user sees QR code)
     if config.interactive_channels:

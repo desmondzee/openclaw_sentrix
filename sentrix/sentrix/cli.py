@@ -43,6 +43,28 @@ def _parse_env_pairs(pairs: tuple[str, ...]) -> dict[str, str]:
     return env
 
 
+def _redact_value(key: str, value: str) -> str:
+    """Redact secret env values for verbose display."""
+    key_upper = key.upper()
+    if any(secret in key_upper for secret in ("API_KEY", "TOKEN", "SECRET", "PASSWORD")):
+        if not value:
+            return "(empty)"
+        if len(value) <= 12:
+            return "***"
+        return f"{value[:4]}...{value[-4:]}"
+    return value
+
+
+def _print_verbose_env(env: dict[str, str]) -> None:
+    """Print sandbox env vars for debugging (secrets redacted)."""
+    console.print()
+    console.print("[bold cyan][verbose][/bold cyan] Sandbox environment (secrets redacted):")
+    for k in sorted(env.keys()):
+        v = _redact_value(k, env[k])
+        console.print(f"  [dim]{k}[/dim]=[green]{v}[/green]")
+    console.print()
+
+
 @click.group()
 @click.version_option(package_name="sentrix")
 def main() -> None:
@@ -57,7 +79,7 @@ def main() -> None:
 @click.option("--timeout", "timeout_mins", default=SANDBOX_TIMEOUT_MINS, type=int, help="Sandbox timeout in minutes.")
 @click.option("-e", "--env", "extra_env", multiple=True, help="Extra env vars (KEY=VALUE), repeatable.")
 @click.option("--image", default=SANDBOX_IMAGE, help="Sandbox Docker image.")
-@click.option("--verbose", is_flag=True, help="Verbose output.")
+@click.option("--verbose", is_flag=True, help="Verbose: print sandbox env (redacted) and OpenClaw auth/config state after gateway starts.")
 @click.option("--patrol", is_flag=True, help="Run patrol swarm: review agent logs, flag malicious content to console and patrol_flags.jsonl.")
 @click.option("--escalation", type=click.Choice(["low_above", "medium_above", "high_only"]), default=None, help="When to auto-run investigator on patrol flags (default with --patrol: medium_above).")
 @click.option("--nobridge", is_flag=True, help="Do not run the WSS bridge for the Web UI (by default sentrix run also starts the bridge).")
@@ -158,6 +180,9 @@ def run(
         if escalation_level:
             esc_label = {"low_above": "Low+", "medium_above": "Medium+", "high_only": "High only"}.get(escalation_level, escalation_level)
             console.print(f"  [dim]investigator escalation: {esc_label}[/dim]")
+
+    if config.verbose:
+        _print_verbose_env(parsed_env)
 
     async def _run() -> None:
         config.ensure_log_dir()

@@ -13,6 +13,7 @@ import { WORLD_COLORS } from "./config/spriteConfig";
 import { preloadEssentialSprites, preloadAllSprites } from "./hooks/spriteLoader";
 import { getWorldBounds } from "./config/roomLayout";
 import { FloorLayer } from "./layers/FloorLayer";
+import { FurnitureLayer, MonitorLayer } from "./layers/FurnitureLayer";
 import { EntityLayer } from "./layers/EntityLayer";
 import { EffectsLayer } from "./layers/EffectsLayer";
 
@@ -149,7 +150,9 @@ export default function SpriteWorld({
             onClick={handleBackgroundClick}
           />
           <FloorLayer />
-          <EffectsLayer />
+          {/* Furniture (tables, chairs) behind agents */}
+          <FurnitureLayer />
+          {/* Agents and characters */}
           <EntityLayer
             selectedAgentId={selectedAgentId}
             onSelectAgent={onSelectAgent}
@@ -159,6 +162,10 @@ export default function SpriteWorld({
             agents={agents}
             response={response}
           />
+          {/* Monitors in front of agents */}
+          <MonitorLayer />
+          {/* Effects on top */}
+          <EffectsLayer />
         </pixiContainer>
       </Application>
       <div className="absolute bottom-3 right-3 flex flex-col gap-1">

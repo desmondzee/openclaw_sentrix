@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { PanelRightOpen, PanelRightClose } from "lucide-react";
 import {
   saveMessage,
   getRecentMessages,
@@ -138,6 +139,8 @@ export default function ClawPage() {
   const [patrolEnabled, setPatrolEnabled] = useState(false);
   const [hasUserSentMessage, setHasUserSentMessage] = useState(false);
   const [policeState, setPoliceState] = useState<PoliceState>(INITIAL_POLICE_STATE);
+  // Manual panel open/close toggle (persists across messages)
+  const [isPanelOpen, setIsPanelOpen] = useState(true);
   const wsRef = useRef<WebSocket | null>(null);
   const pendingIdRef = useRef<string | null>(null);
   const backoffMsRef = useRef(INITIAL_BACKOFF_MS);
@@ -433,7 +436,8 @@ export default function ClawPage() {
     };
   }, [isMounted, bridgeUrl, reconnectKey]);
 
-  const showAgentPanel = patrolEnabled && hasUserSentMessage;
+  // Show panel when patrol is enabled, user sent a message, and panel is toggled open
+  const showAgentPanel = patrolEnabled && hasUserSentMessage && isPanelOpen;
   const POLL_STATE_INTERVAL_MS = 10_000;
 
   // Poll get_state while agent police panel is open (no React Query; use existing WebSocket)
@@ -657,15 +661,46 @@ export default function ClawPage() {
           </div>
         </div>
 
-        {/* Right: sliding agent police panel (always in DOM; animate width for smooth slide) */}
+        {/* Right: sliding agent police panel with toggle button */}
         <div
-          className="flex shrink-0 overflow-hidden border-l border-[var(--pixel-border)] bg-[var(--surface)] transition-[flex-basis,min-width] duration-300 ease-out"
-          style={{ flexBasis: showAgentPanel ? "50%" : "0%", minWidth: showAgentPanel ? "50%" : "0%" }}
+          className={`
+            relative flex shrink-0 overflow-hidden border-l border-[var(--pixel-border)] bg-[var(--surface)]
+            transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
+            ${showAgentPanel ? "w-1/2 min-w-[400px] opacity-100" : "w-0 min-w-0 opacity-0"}
+          `}
         >
-          <div className="h-full w-full min-w-[320px] shrink-0">
-            {showAgentPanel && (
-              <SpriteView policeState={policeState} />
-            )}
+          {/* Toggle button - always visible at the edge when panel can be shown */}
+          {patrolEnabled && hasUserSentMessage && (
+            <button
+              type="button"
+              onClick={() => setIsPanelOpen((v) => !v)}
+              className={`
+                absolute top-4 z-10 flex items-center justify-center
+                rounded-l border border-r-0 border-[var(--pixel-border)] 
+                bg-[var(--surface)] px-2 py-3 shadow-lg
+                transition-all duration-300 ease-out
+                hover:bg-[var(--background)] hover:scale-105
+                ${showAgentPanel ? "-left-10" : "-left-10"}
+              `}
+              title={isPanelOpen ? "Close Agent Panel" : "Open Agent Panel"}
+            >
+              {isPanelOpen ? (
+                <PanelRightClose className="h-5 w-5 text-[var(--foreground)]" />
+              ) : (
+                <PanelRightOpen className="h-5 w-5 text-[var(--foreground)]" />
+              )}
+            </button>
+          )}
+
+          {/* Panel content with fade animation */}
+          <div 
+            className={`
+              h-full w-full min-w-[400px] shrink-0
+              transition-opacity duration-300 ease-out
+              ${showAgentPanel ? "opacity-100" : "opacity-0"}
+            `}
+          >
+            <SpriteView policeState={policeState} />
           </div>
         </div>
       </div>
