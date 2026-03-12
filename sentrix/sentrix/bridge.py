@@ -34,13 +34,30 @@ def _read_patrol_enabled(log_dir: Path) -> bool:
         return False
 
 
-def _get_agents_from_log_dir(log_dir: Path) -> list[dict]:
+def _read_max_subagents(log_dir: Path) -> int:
+    """Read max_subagents from log_dir/.sentrix_config.json. Returns 3 if missing or invalid."""
+    path = log_dir / SENTRIX_CONFIG_FILE
+    if not path.exists():
+        return 3
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        max_sub = data.get("max_subagents", 3)
+        if isinstance(max_sub, int) and max_sub > 0:
+            return max_sub
+        return 3
+    except (json.JSONDecodeError, OSError):
+        return 3
+
+
+def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict]:
     """Extract active agents from log files.
     
-    This function analyzes recent log files to identify currently active agents.
-    It returns one main agent (representing the primary OpenClaw instance) and
-    any subagents that have been spawned. Each unique runId represents an agent
-    session - the most recent run is the main agent, others are potential subagents.
+    This function analyzes recent log files to identify currently active agents
+    grouped by sessionKey. sessionKey identifies the actual agent (e.g.,
+    'agent:main:main' for main agent, 'agent:main:subagent:uuid' for subagents).
+    Multiple runIds can belong to the same sessionKey.
+    
+    Returns one main agent and up to max_subagents subagents.
     """
     json_files = [
         f
@@ -55,8 +72,8 @@ def _get_agents_from_log_dir(log_dir: Path) -> list[dict]:
     # Consider logs from last 30 minutes to only show active agents
     cutoff_time = (datetime.now(timezone.utc) - timedelta(minutes=30)).timestamp() * 1000
     
-    # Collect all runs with their latest timestamp from recent files
-    run_activity: dict[str, float] = {}
+    # Collect all sessionKeys with their latest activity and a sample runId
+    session_activity: dict[str, dict] = {}  # sessionKey -> {last_ts, run_id, is_subagent}
     
     for log_file in json_files:
         # Skip older files based on mtime for efficiency
@@ -80,38 +97,71 @@ def _get_agents_from_log_dir(log_dir: Path) -> list[dict]:
             # Only consider recent activity
             if ts < cutoff_time:
                 continue
-            rid = obj.get("runId")
-            if isinstance(rid, str) and rid:
-                # Track the most recent activity for each run
-                run_activity[rid] = max(run_activity.get(rid, 0), ts)
+            
+            # Use sessionKey if available, fall back to runId
+            session_key = obj.get("sessionKey")
+            run_id = obj.get("runId")
+            
+            if isinstance(session_key, str) and session_key:
+                key = session_key
+                is_subagent = ":subagent:" in session_key
+            elif isinstance(run_id, str) and run_id:
+                # Fallback: use runId (for backwards compatibility with old logs)
+                key = run_id
+                is_subagent = False
+            else:
+                continue
+            
+            # Track the most recent activity for each session
+            if key not in session_activity or ts > session_activity[key]["last_ts"]:
+                session_activity[key] = {
+                    "last_ts": ts,
+                    "run_id": run_id if isinstance(run_id, str) else key,
+                    "is_subagent": is_subagent,
+                }
     
-    if not run_activity:
+    if not session_activity:
         return []
     
-    # Sort runs by activity time (most recent first)
-    sorted_runs = sorted(run_activity.items(), key=lambda x: x[1], reverse=True)
+    # Separate main agent and subagents
+    main_sessions = []
+    subagent_sessions = []
     
-    # The most recent run is the main agent, others are potential subagents
-    agents: list[dict] = []
-    for i, (rid, _) in enumerate(sorted_runs):
-        if i == 0:
-            # Main agent
-            agents.append({
-                "id": rid,
-                "name": "Main Agent",
-                "role": "primary",
-                "status": "working",
-                "riskScore": "normal",
-            })
+    for session_key, data in session_activity.items():
+        if data["is_subagent"]:
+            subagent_sessions.append((session_key, data))
         else:
-            # Potential subagent
-            agents.append({
-                "id": rid,
-                "name": f"Subagent-{i}",
-                "role": "subagent",
-                "status": "working",
-                "riskScore": "normal",
-            })
+            main_sessions.append((session_key, data))
+    
+    # Sort by activity time (most recent first)
+    main_sessions.sort(key=lambda x: x[1]["last_ts"], reverse=True)
+    subagent_sessions.sort(key=lambda x: x[1]["last_ts"], reverse=True)
+    
+    # Build agents list
+    agents: list[dict] = []
+    
+    # Add main agent (most recent non-subagent session)
+    if main_sessions:
+        session_key, data = main_sessions[0]
+        agents.append({
+            "id": data["run_id"],
+            "name": "Main Agent",
+            "role": "primary",
+            "status": "working",
+            "riskScore": "normal",
+            "sessionKey": session_key,
+        })
+    
+    # Add subagents (up to max_subagents)
+    for i, (session_key, data) in enumerate(subagent_sessions[:max_subagents]):
+        agents.append({
+            "id": data["run_id"],
+            "name": f"Subagent-{i + 1}",
+            "role": "subagent",
+            "status": "working",
+            "riskScore": "normal",
+            "sessionKey": session_key,
+        })
     
     return agents
 
@@ -428,7 +478,8 @@ async def _proxy_connection(
 
                                 # WS intercept: get_state is handled locally; do not forward to gateway
                                 if msg_type == "get_state":
-                                    agents = _get_agents_from_log_dir(log_dir)
+                                    max_subagents = _read_max_subagents(log_dir)
+                                    agents = _get_agents_from_log_dir(log_dir, max_subagents)
                                     flags = _get_flags_from_log_dir(log_dir)
                                     await browser_ws.send(json.dumps({
                                         "type": "state",

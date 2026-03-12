@@ -20,6 +20,9 @@ PROVIDERS = {
     "MISTRAL_API_KEY": "mistral",
     "GROQ_API_KEY": "groq",
     "TOGETHER_API_KEY": "together",
+    "MINIMAX_API_KEY": "minimax",
+    "KIMI_API_KEY": "kimi-coding",
+    "KIMICODE_API_KEY": "kimi-coding",
 }
 
 def main():

@@ -103,6 +103,7 @@ def run(
 
     patrol_enabled_from_wizard = False
     escalation_level_from_wizard: str | None = None
+    max_subagents_from_wizard = 3
 
     if not has_api_key:
         from sentrix.wizard import run_setup_wizard
@@ -112,6 +113,8 @@ def run(
         if len(result) >= 4:
             patrol_enabled_from_wizard = result[2]
             escalation_level_from_wizard = result[3]
+        if len(result) >= 5:
+            max_subagents_from_wizard = result[4]
 
         if reasoning is None:
             reasoning = wizard_env.pop("OPENCLAW_REASONING", None) == "on"
@@ -141,6 +144,7 @@ def run(
         interactive_channels=interactive_channels,
         patrol_enabled=patrol,
         escalation_level=escalation_level,
+        max_subagents=max_subagents_from_wizard,
     )
 
     console.print()
@@ -159,7 +163,10 @@ def run(
         config.ensure_log_dir()
         _sentrix_config_path = config.log_dir / ".sentrix_config.json"
         _sentrix_config_path.write_text(
-            json.dumps({"patrol_enabled": config.patrol_enabled}),
+            json.dumps({
+                "patrol_enabled": config.patrol_enabled,
+                "max_subagents": config.max_subagents,
+            }),
             encoding="utf-8",
         )
         if nobridge:

@@ -36,6 +36,7 @@ class SentrixConfig:
     interactive_channels: list[str] = field(default_factory=list)
     patrol_enabled: bool = False
     escalation_level: str | None = None  # low_above | medium_above | high_only
+    max_subagents: int = 3  # Max subagents to display in the UI
 
     def sandbox_env(self) -> dict[str, str]:
         """Environment variables to inject into the sandbox container."""

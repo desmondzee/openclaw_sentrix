@@ -29,6 +29,8 @@ PROVIDERS = [
     {"id": "mistral", "name": "Mistral AI", "env": "MISTRAL_API_KEY", "hint": "Mistral / Codestral"},
     {"id": "groq", "name": "Groq", "env": "GROQ_API_KEY", "hint": "Fast inference"},
     {"id": "together", "name": "Together AI", "env": "TOGETHER_API_KEY", "hint": "Open-source models"},
+    {"id": "minimax", "name": "MiniMax", "env": "MINIMAX_API_KEY", "hint": "MiniMax M2.5 models"},
+    {"id": "kimi-coding", "name": "Kimi (Moonshot)", "env": "KIMI_API_KEY", "hint": "Kimi K2.5 models"},
 ]
 
 MODELS_BY_PROVIDER: dict[str, list[dict[str, str]]] = {
@@ -67,6 +69,13 @@ MODELS_BY_PROVIDER: dict[str, list[dict[str, str]]] = {
     "together": [
         {"id": "together/meta-llama/Llama-4-Maverick-17B-128E", "name": "Llama 4 Maverick"},
         {"id": "together/deepseek-ai/DeepSeek-R1", "name": "DeepSeek R1"},
+    ],
+    "minimax": [
+        {"id": "minimax/MiniMax-M2.5", "name": "MiniMax M2.5 (recommended)"},
+        {"id": "minimax/MiniMax-M2.5-highspeed", "name": "MiniMax M2.5 High Speed"},
+    ],
+    "kimi-coding": [
+        {"id": "kimi-k2.5", "name": "Kimi K2.5 (recommended)"},
     ],
 }
 
@@ -313,6 +322,24 @@ def _step_web_search() -> dict[str, str]:
     return env
 
 
+def _step_max_subagents() -> int:
+    """Step 5.5: Max subagents to display. Returns max_subagents."""
+    console.print()
+    console.print("[bold]Step 5.5:[/bold] Subagent Display")
+    console.print("  [dim]How many subagents can be displayed in the UI at once.[/dim]")
+    console.print()
+    
+    choices = [
+        Choice(title="1 subagent", value="1"),
+        Choice(title="2 subagents", value="2"),
+        Choice(title="3 subagents (recommended)", value="3"),
+        Choice(title="5 subagents", value="5"),
+        Choice(title="10 subagents", value="10"),
+    ]
+    result = _select("Maximum subagents to display:", choices)
+    return int(result)
+
+
 def _step_patrol() -> tuple[bool, str | None]:
     """Step 6: Patrol swarm and escalation. Returns (patrol_enabled, escalation_level)."""
     console.print()
@@ -360,8 +387,8 @@ def _step_security() -> dict[str, str]:
 # Main wizard entry point
 # ---------------------------------------------------------------------------
 
-def run_setup_wizard() -> tuple[dict[str, str], list[str], bool, str | None]:
-    """Interactive setup wizard. Returns (env_vars, interactive_channels, patrol_enabled, escalation_level)."""
+def run_setup_wizard() -> tuple[dict[str, str], list[str], bool, str | None, int]:
+    """Interactive setup wizard. Returns (env_vars, interactive_channels, patrol_enabled, escalation_level, max_subagents)."""
     console.print()
     console.print(Panel.fit(
         "[bold]Sentrix Setup[/bold]\n"
@@ -384,6 +411,9 @@ def run_setup_wizard() -> tuple[dict[str, str], list[str], bool, str | None]:
 
     # Step 5: Web search
     web_search_env = _step_web_search()
+
+    # Step 5.5: Max subagents
+    max_subagents = _step_max_subagents()
 
     # Step 6: Patrol & escalation
     patrol_enabled, escalation_level = _step_patrol()
@@ -418,6 +448,7 @@ def run_setup_wizard() -> tuple[dict[str, str], list[str], bool, str | None]:
             all_ch_names.append(ch["name"])
     summary.add_row("Channels", ", ".join(all_ch_names) if all_ch_names else "None (configure later)")
     summary.add_row("Web Search", "Brave (configured)" if "BRAVE_API_KEY" in web_search_env else "Not configured")
+    summary.add_row("Max subagents", str(max_subagents))
     summary.add_row("Patrol", "Yes" if patrol_enabled else "No")
     if patrol_enabled and escalation_level:
         esc_label = {"low_above": "Low and above", "medium_above": "Medium and above", "high_only": "High only"}.get(escalation_level, escalation_level)
@@ -442,4 +473,4 @@ def run_setup_wizard() -> tuple[dict[str, str], list[str], bool, str | None]:
     env.update(web_search_env)
     env.update(security_env)
 
-    return env, interactive_channels, patrol_enabled, escalation_level
+    return env, interactive_channels, patrol_enabled, escalation_level, max_subagents
