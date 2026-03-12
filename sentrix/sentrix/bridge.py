@@ -102,6 +102,7 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict
             session_key = obj.get("sessionKey")
             run_id = obj.get("runId")
             
+            is_runid_fallback = False
             if isinstance(session_key, str) and session_key:
                 key = session_key
                 is_subagent = ":subagent:" in session_key
@@ -109,6 +110,7 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict
                 # Fallback: use runId (for backwards compatibility with old logs)
                 key = run_id
                 is_subagent = False
+                is_runid_fallback = True
             else:
                 continue
             
@@ -118,6 +120,7 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict
                     "last_ts": ts,
                     "run_id": run_id if isinstance(run_id, str) else key,
                     "is_subagent": is_subagent,
+                    "is_runid_fallback": is_runid_fallback,
                 }
     
     if not session_activity:
@@ -126,6 +129,12 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict
     # Separate main agent and subagents
     main_sessions = []
     subagent_sessions = []
+    
+    # Check if we have any real sessionKeys (not just runIds)
+    has_real_session_keys = any(
+        not data.get("is_runid_fallback", True) 
+        for data in session_activity.values()
+    )
     
     for session_key, data in session_activity.items():
         if data["is_subagent"]:
@@ -151,6 +160,13 @@ def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> list[dict
             "riskScore": "normal",
             "sessionKey": session_key,
         })
+        
+        # If we don't have real sessionKeys, treat other recent sessions as subagents
+        # This is a fallback when OpenClaw hasn't been rebuilt with sessionKey logging
+        if not has_real_session_keys and len(main_sessions) > 1:
+            # Treat other non-main sessions as subagents
+            for i, (session_key, data) in enumerate(main_sessions[1:max_subagents+1]):
+                subagent_sessions.append((session_key, data))
     
     # Add subagents (up to max_subagents)
     for i, (session_key, data) in enumerate(subagent_sessions[:max_subagents]):
@@ -481,6 +497,9 @@ async def _proxy_connection(
                                     max_subagents = _read_max_subagents(log_dir)
                                     agents = _get_agents_from_log_dir(log_dir, max_subagents)
                                     flags = _get_flags_from_log_dir(log_dir)
+                                    logger.debug(f"[get_state] Returning {len(agents)} agents, {len(flags)} flags")
+                                    for a in agents:
+                                        logger.debug(f"  - {a.get('name')} ({a.get('role')}): {a.get('sessionKey', 'no-session-key')[:20]}...")
                                     await browser_ws.send(json.dumps({
                                         "type": "state",
                                         "payload": {"agents": agents, "flags": flags},

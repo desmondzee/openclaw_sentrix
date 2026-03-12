@@ -141,21 +141,31 @@ async def run_sync_loop(
     log_dir: Path,
     rotate_mins: int,
     *,
-    poll_secs: float = 30.0,
+    poll_secs: float = 5.0,
     stop_event: asyncio.Event | None = None,
 ) -> None:
-    """Periodically sync closed log files until stop_event is set."""
+    """Periodically sync log files until stop_event is set.
+    
+    Active files are synced every cycle for near real-time updates.
+    Closed files are synced once and tracked.
+    """
     # Brief startup delay: let entrypoint.sh + execd stabilize
     await asyncio.sleep(5)
 
+    cycle_count = 0
     while True:
         if stop_event and stop_event.is_set():
             break
         try:
+            # Sync - this updates active files every cycle
             pulled = await sync_once_with_retry(sandbox, log_dir, rotate_mins)
             if pulled:
                 for f in pulled:
                     print(f"[sentrix] synced {f}")
+            cycle_count += 1
+            # Log periodic status (every ~30 seconds)
+            if cycle_count % 6 == 0:
+                print(f"[sentrix] sync cycle {cycle_count} (active files updated)")
         except Exception as exc:
             print(f"[sentrix] sync error: {exc}")
 

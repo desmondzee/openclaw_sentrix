@@ -463,10 +463,10 @@ async def run_sandbox(
     # Persist sandbox ID so sentrix chat can reconnect
     _write_sandbox_id(log_dir, sandbox.id)
 
-    # Start the log sync loop
+    # Start the log sync loop (poll every 5s for near real-time active file sync)
     stop_event = asyncio.Event()
     sync_task = asyncio.create_task(
-        run_sync_loop(sandbox, log_dir, config.rotate_mins, stop_event=stop_event)
+        run_sync_loop(sandbox, log_dir, config.rotate_mins, poll_secs=5.0, stop_event=stop_event)
     )
 
     patrol_task = None

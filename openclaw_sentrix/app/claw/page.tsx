@@ -362,10 +362,12 @@ export default function ClawPage() {
           }
 
           if (msg.type === "state" && msg.payload) {
-            setPoliceState({
-              agents: Array.isArray(msg.payload.agents) ? msg.payload.agents : [],
-              flags: Array.isArray(msg.payload.flags) ? msg.payload.flags : [],
-            });
+            const agents = Array.isArray(msg.payload.agents) ? msg.payload.agents : [];
+            const flags = Array.isArray(msg.payload.flags) ? msg.payload.flags : [];
+            if (typeof window !== "undefined") {
+              console.log("[Claw] Received state:", { agentCount: agents.length, flagCount: flags.length, agents });
+            }
+            setPoliceState({ agents, flags });
             return;
           }
 
@@ -436,16 +438,20 @@ export default function ClawPage() {
 
   // Poll get_state while agent police panel is open (no React Query; use existing WebSocket)
   useEffect(() => {
-    if (!showAgentPanel || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+    if (!showAgentPanel || connectionStatus !== "connected") return;
     const sendGetState = () => {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: "get_state" }));
       }
     };
-    sendGetState();
+    // Small delay to ensure WebSocket is fully ready
+    const timeout = setTimeout(sendGetState, 100);
     const interval = setInterval(sendGetState, POLL_STATE_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [showAgentPanel]);
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(interval);
+    };
+  }, [showAgentPanel, connectionStatus]);
 
   const sendMessage = useCallback(() => {
     const text = inputValue.trim();
