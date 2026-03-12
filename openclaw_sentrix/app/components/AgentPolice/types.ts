@@ -28,4 +28,6 @@ export interface PatrolResponseProps {
   onNetworkArrived: () => void;
   onNetworkReturnArrived: () => void;
   phase: string;
+  /** Agent ID that is currently flagged for violation (turns red) */
+  flaggedAgentId: string | null;
 }

@@ -28,6 +28,8 @@ interface AgentSpriteProps {
   y: number;
   isSelected: boolean;
   onSelect: (agentId: string) => void;
+  /** Whether this agent is currently flagged for violation (turns red) */
+  isFlagged?: boolean;
 }
 
 export function AgentSprite({
@@ -40,8 +42,12 @@ export function AgentSprite({
   y,
   isSelected,
   onSelect,
+  isFlagged = false,
 }: AgentSpriteProps) {
-  const colors = STATUS_COLORS[status];
+  // When flagged, show red colors regardless of status
+  const colors = isFlagged 
+    ? { bg: 0x5a1a1a, border: 0xff4444, text: "#ff4444" }
+    : STATUS_COLORS[status];
   const [isMounted, setIsMounted] = useState(false);
 
   const isSuspended = status === "suspended";

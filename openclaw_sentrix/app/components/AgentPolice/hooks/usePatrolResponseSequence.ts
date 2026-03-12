@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { controlRoom, patrolWaypoints } from "../config/roomLayout";
 import type { PatrolNotification as Notification } from "./usePatrolFlagNotifications";
 
-const AT_SCENE_TIMEOUT_MS = 8_000;
+const AT_SCENE_TIMEOUT_MS = 10_000; // 10 seconds for swarm effect
 const REPORT_DURATION_MS = 3_000;
 
 const OFFSETS = {
@@ -36,6 +36,8 @@ export interface PatrolResponseState {
   onInvestigatorReturnArrived: () => void;
   onNetworkArrived: () => void;
   onNetworkReturnArrived: () => void;
+  /** Agent ID that is currently flagged for violation (turns red) */
+  flaggedAgentId: string | null;
 }
 
 export type GetAgentPosition = (
@@ -189,6 +191,7 @@ export function usePatrolResponseSequence(
           onInvestigatorReturnArrived,
           onNetworkArrived: () => {},
           onNetworkReturnArrived: () => {},
+          flaggedAgentId,
         };
 
   return { responseState: response, resetToIdle };

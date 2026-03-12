@@ -68,6 +68,7 @@ export function SpriteView({ policeState }: SpriteViewProps) {
       onNetworkArrived: responseState.onNetworkArrived,
       onNetworkReturnArrived: responseState.onNetworkReturnArrived,
       phase: responseState.phase,
+      flaggedAgentId: responseState.flaggedAgentId,
     };
   }, [responseState]);
 
