@@ -170,7 +170,7 @@ export default function SpriteWorld({
   return (
     <div
       ref={containerRef}
-      className="relative h-full w-full overflow-hidden"
+      className="relative h-full w-full overflow-hidden pt-4"
     >
       <Application
         resizeTo={containerRef}
@@ -207,14 +207,14 @@ export default function SpriteWorld({
         <button
           type="button"
           onClick={() => setScale((s) => Math.min(1.5, s + 0.1))}
-          className="rounded border border-[#374151] bg-[#1a1f2e] px-2 py-1 text-sm text-white hover:bg-[#2a2f3e]"
+          className="rounded border border-[#374151] bg-[#1a1f2e] px-2 py-1 text-sm text-white hover:bg-[#2a2f3e] cursor-pointer"
         >
           +
         </button>
         <button
           type="button"
           onClick={() => setScale((s) => Math.max(0.4, s - 0.1))}
-          className="rounded border border-[#374151] bg-[#1a1f2e] px-2 py-1 text-sm text-white hover:bg-[#2a2f3e]"
+          className="rounded border border-[#374151] bg-[#1a1f2e] px-2 py-1 text-sm text-white hover:bg-[#2a2f3e] cursor-pointer"
         >
           −
         </button>
