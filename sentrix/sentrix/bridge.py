@@ -49,6 +49,21 @@ def _read_max_subagents(log_dir: Path) -> int:
         return 3
 
 
+def _read_escalation_level(log_dir: Path) -> str | None:
+    """Read escalation_level from log_dir/.sentrix_config.json. Returns None if missing or invalid."""
+    path = log_dir / SENTRIX_CONFIG_FILE
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        level = data.get("escalation_level")
+        if level in ("low_above", "medium_above", "high_only"):
+            return level
+        return None
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
 def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> tuple[list[dict], dict[str, str]]:
     """Extract active agents from log files.
     
@@ -556,7 +571,8 @@ async def _proxy_connection(
                                     max_subagents = _read_max_subagents(log_dir)
                                     agents, log_file_to_agent = _get_agents_from_log_dir(log_dir, max_subagents)
                                     flags = _get_flags_from_log_dir(log_dir, log_file_to_agent)
-                                    logger.debug(f"[get_state] Returning {len(agents)} agents, {len(flags)} flags")
+                                    escalation_level = _read_escalation_level(log_dir)
+                                    logger.debug(f"[get_state] Returning {len(agents)} agents, {len(flags)} flags, escalation={escalation_level}")
                                     for a in agents:
                                         logger.debug(f"  - {a.get('name')} ({a.get('role')}): {a.get('sessionKey', 'no-session-key')[:20]}...")
                                     # Log flag details including target_agent_id
@@ -564,7 +580,7 @@ async def _proxy_connection(
                                         logger.debug(f"  - flag: {f.get('flag_id', 'unknown')[:8]}... target_agent={f.get('target_agent_id', 'unknown')[:8]}...")
                                     await browser_ws.send(json.dumps({
                                         "type": "state",
-                                        "payload": {"agents": agents, "flags": flags},
+                                        "payload": {"agents": agents, "flags": flags, "escalation_level": escalation_level},
                                     }))
                                     continue
 

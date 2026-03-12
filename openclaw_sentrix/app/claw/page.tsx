@@ -38,6 +38,8 @@ interface ChatMessage {
 export interface PoliceState {
   agents: Array<{ id: string; name: string; status: string }>;
   flags: Array<Record<string, unknown>>;
+  /** Escalation level for investigation: low_above | medium_above | high_only */
+  escalation_level?: string | null;
 }
 
 const INITIAL_POLICE_STATE: PoliceState = { agents: [], flags: [] };
@@ -661,7 +663,30 @@ export default function ClawPage() {
           </div>
         </div>
 
-        {/* Right: sliding agent police panel with toggle button */}
+        {/* Toggle button - outside panel, always accessible when patrol enabled */}
+        {patrolEnabled && hasUserSentMessage && (
+          <button
+            type="button"
+            onClick={() => setIsPanelOpen((v) => !v)}
+            className={`
+              fixed right-0 top-20 z-50 flex items-center justify-center
+              rounded-l border border-r-0 border-[var(--pixel-border)] 
+              bg-[var(--surface)] px-2 py-3 shadow-lg
+              transition-all duration-300 ease-out
+              hover:bg-[var(--background)] hover:scale-105
+              cursor-pointer
+            `}
+            title={isPanelOpen ? "Close Agent View" : "Open Agent View"}
+          >
+            {isPanelOpen ? (
+              <PanelRightClose className="h-5 w-5 text-[var(--foreground)]" />
+            ) : (
+              <PanelRightOpen className="h-5 w-5 text-[var(--foreground)]" />
+            )}
+          </button>
+        )}
+
+        {/* Right: sliding agent police panel */}
         <div
           className={`
             relative flex shrink-0 overflow-hidden border-l border-[var(--pixel-border)] bg-[var(--surface)]
@@ -670,29 +695,6 @@ export default function ClawPage() {
           `}
           style={{ minWidth: showAgentPanel ? "500px" : "0px" }}
         >
-          {/* Toggle button - always visible at the edge when panel can be shown */}
-          {patrolEnabled && hasUserSentMessage && (
-            <button
-              type="button"
-              onClick={() => setIsPanelOpen((v) => !v)}
-              className={`
-                absolute top-4 z-10 flex items-center justify-center
-                rounded-l border border-r-0 border-[var(--pixel-border)] 
-                bg-[var(--surface)] px-2 py-3 shadow-lg
-                transition-all duration-300 ease-out
-                hover:bg-[var(--background)] hover:scale-105
-                -left-10
-              `}
-              title={isPanelOpen ? "Close Agent Panel" : "Open Agent Panel"}
-            >
-              {isPanelOpen ? (
-                <PanelRightClose className="h-5 w-5 text-[var(--foreground)]" />
-              ) : (
-                <PanelRightOpen className="h-5 w-5 text-[var(--foreground)]" />
-              )}
-            </button>
-          )}
-
           {/* Panel content - fills available space */}
           <div 
             className={`

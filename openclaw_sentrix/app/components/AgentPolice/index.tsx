@@ -42,7 +42,8 @@ export function SpriteView({ policeState }: SpriteViewProps) {
     notification,
     dismiss,
     getAgentPosition,
-    agents
+    agents,
+    policeState.escalation_level
   );
 
   const getAgentStatus = useCallback(

@@ -63,11 +63,28 @@ function pickClosestPatrol(agentPos: { x: number; y: number }): "p1" | "p2" {
   return dist(p1Pos, agentPos) <= dist(p2Pos, agentPos) ? "p1" : "p2";
 }
 
+/** Check if severity meets the escalation threshold for investigation */
+function severityMeetsEscalation(severity: string, escalationLevel: string | null | undefined): boolean {
+  if (!escalationLevel) return false;
+  const sev = severity.toUpperCase();
+  switch (escalationLevel) {
+    case "low_above":
+      return sev === "LOW" || sev === "MEDIUM" || sev === "HIGH" || sev === "CRITICAL";
+    case "medium_above":
+      return sev === "MEDIUM" || sev === "HIGH" || sev === "CRITICAL";
+    case "high_only":
+      return sev === "HIGH" || sev === "CRITICAL";
+    default:
+      return false;
+  }
+}
+
 export function usePatrolResponseSequence(
   notification: Notification | null,
   dismiss: () => void,
   getAgentPosition: GetAgentPosition,
-  agents: Array<{ id: string }>
+  agents: Array<{ id: string }>,
+  escalationLevel: string | null | undefined
 ) {
   const [phase, setPhase] = useState<ResponsePhase>("idle");
   const [respondingPatrolId, setRespondingPatrolId] = useState<"p1" | "p2" | null>(
@@ -86,6 +103,8 @@ export function usePatrolResponseSequence(
     x: number;
     y: number;
   } | null>(null);
+  // Track if this flag requires investigator (HIGH severity)
+  const [requiresInvestigation, setRequiresInvestigation] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const patrolReturnedRef = useRef(false);
@@ -106,6 +125,7 @@ export function usePatrolResponseSequence(
     setPatrolTargetPos(null);
     setPatrol2TargetPos(null);
     setInvestigatorTargetPos(null);
+    setRequiresInvestigation(false);
     patrolReturnedRef.current = false;
     investigatorReturnedRef.current = false;
   }, [clearTimers]);
@@ -119,6 +139,12 @@ export function usePatrolResponseSequence(
       dismiss();
       return;
     }
+    
+    // Check if this flag requires investigator based on escalation level
+    const severity = notification.severity || "";
+    const needsInvestigator = severityMeetsEscalation(severity, escalationLevel);
+    setRequiresInvestigation(needsInvestigator);
+    
     const patrolId = pickClosestPatrol(agentPos);
     setRespondingPatrolId(patrolId);
     setFlaggedAgentId(agentId);
@@ -147,24 +173,31 @@ export function usePatrolResponseSequence(
     
   }, [notification, dismiss, getAgentPosition]);
 
-  // Step 2: Patrols return, then investigator moves
+  // Step 2: Patrols return, then investigator moves (only if required)
   const onPatrolReturnArrived = useCallback(() => {
     if (phase !== "patrol_returning") return;
     patrolReturnedRef.current = true;
     
-    // Start investigator phase
-    const agentId = flaggedAgentId;
-    const agentPos = agentId ? getAgentPosition(agentId) : null;
-    if (agentPos) {
-      setInvestigatorTargetPos({
-        x: agentPos.x + OFFSETS.investigator.dx,
-        y: agentPos.y + OFFSETS.investigator.dy,
-      });
-      setPhase("investigator_moving");
-    } else {
-      resetToIdle();
+    // Only call investigator for HIGH severity flags
+    if (requiresInvestigation) {
+      const agentId = flaggedAgentId;
+      const agentPos = agentId ? getAgentPosition(agentId) : null;
+      if (agentPos) {
+        setInvestigatorTargetPos({
+          x: agentPos.x + OFFSETS.investigator.dx,
+          y: agentPos.y + OFFSETS.investigator.dy,
+        });
+        setPhase("investigator_moving");
+        return;
+      }
     }
-  }, [phase, flaggedAgentId, getAgentPosition, resetToIdle]);
+    
+    // No investigation needed - go straight to reporting
+    setPhase("reporting");
+    timerRef.current = setTimeout(() => {
+      resetToIdle();
+    }, REPORT_DURATION_MS);
+  }, [phase, flaggedAgentId, getAgentPosition, resetToIdle, requiresInvestigation]);
 
   // Step 3: Investigator arrives, stays for investigation period
   const onInvestigatorArrived = useCallback(() => {
