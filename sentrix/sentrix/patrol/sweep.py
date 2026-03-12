@@ -50,8 +50,17 @@ async def run_sweep_cycle(
     turns = load_turns_from_log_dir(log_dir, min_ts=min_ts)
     pending = filter_pending_turns(turns, state_conn, RULESET_VERSION, MODEL_VERSION)
     if not pending:
+        logger.debug(
+            "Patrol sweep: no pending turns (loaded %d, all already cleared or none after min_ts)",
+            len(turns),
+        )
         return [], []
 
+    logger.info(
+        "Patrol sweep: loaded %d turns, %d pending (not yet cleared for this ruleset/model)",
+        len(turns),
+        len(pending),
+    )
     by_stream = _group_turns_by_stream(pending)
     stream_ids = list(by_stream.keys())
     n_streams = max(1, len(stream_ids))
@@ -81,7 +90,7 @@ async def run_sweep_cycle(
         except Exception as exc:
             logger.exception("Failed to deserialise PatrolFlag: %s", exc)
 
-    # Mark all processed turns as cleared (CLEAN or from flag)
+    # Mark every pending turn as cleared so we never re-queue it (same ruleset/model).
     reviewed_run_id_ts: list[str] = []
     for t in pending:
         run_id_ts = t.get("runId_ts") or f"{t.get('run_id', '')}_{t.get('ts', '')}"
@@ -92,6 +101,12 @@ async def run_sweep_cycle(
                 severity = str(f.consensus_severity)
                 break
         mark_cleared(state_conn, run_id_ts, severity, RULESET_VERSION, MODEL_VERSION)
+    logger.info(
+        "Patrol sweep: marked %d turns cleared (ruleset=%s, model=%s)",
+        len(reviewed_run_id_ts),
+        RULESET_VERSION,
+        MODEL_VERSION,
+    )
 
     return flags, reviewed_run_id_ts
 

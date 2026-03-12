@@ -80,7 +80,7 @@ def filter_pending_turns(
     ruleset_version: str,
     model_version: str,
 ) -> list[dict[str, Any]]:
-    """Return only turns that are not cleared or were cleared with a different version."""
+    """Return only turns that are not cleared or were cleared with a different version. run_id_ts must match log_reader normalise_turn (run_id + '_' + ts) so cleared entries are found."""
     pending = []
     for t in turns:
         run_id_ts = t.get("runId_ts") or f"{t.get('run_id', '')}_{t.get('ts', 0)}"

@@ -9,6 +9,14 @@ import {
   clearHistory,
   type PersistedMessage,
 } from "@/lib/chatHistory";
+import {
+  saveReports,
+  getAllReports,
+  markReportViewed,
+  type InvestigationReport,
+} from "@/lib/investigationReports";
+import { InvestigationRegistry } from "@/app/components/AgentPolice/InvestigationRegistry";
+import { InvestigationDetail } from "@/app/components/AgentPolice/InvestigationDetail";
 
 const SpriteView = dynamic(
   () => import("@/app/components/AgentPolice").then((m) => m.SpriteView),
@@ -40,9 +48,11 @@ export interface PoliceState {
   flags: Array<Record<string, unknown>>;
   /** Escalation level for investigation: low_above | medium_above | high_only */
   escalation_level?: string | null;
+  /** Investigation case files from police DB */
+  case_files?: InvestigationReport[];
 }
 
-const INITIAL_POLICE_STATE: PoliceState = { agents: [], flags: [] };
+const INITIAL_POLICE_STATE: PoliceState = { agents: [], flags: [], case_files: [] };
 
 /** Trust server runs on port - 1. Open in browser to accept the cert. */
 function bridgeUrlToTrustUrl(wssUrl: string): string {
@@ -143,6 +153,10 @@ export default function ClawPage() {
   const [policeState, setPoliceState] = useState<PoliceState>(INITIAL_POLICE_STATE);
   // Manual panel open/close toggle (persists across messages)
   const [isPanelOpen, setIsPanelOpen] = useState(true);
+  // Investigation reports state
+  const [reports, setReports] = useState<InvestigationReport[]>([]);
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [hasNewReports, setHasNewReports] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const pendingIdRef = useRef<string | null>(null);
   const backoffMsRef = useRef(INITIAL_BACKOFF_MS);
@@ -203,6 +217,18 @@ export default function ClawPage() {
         }
       } catch {
         // IndexedDB unavailable — degrade gracefully
+      }
+    })();
+
+    // Load investigation reports from IndexedDB
+    (async () => {
+      try {
+        const stored = await getAllReports();
+        if (stored.length > 0) {
+          setReports(stored);
+        }
+      } catch {
+        // IndexedDB unavailable
       }
     })();
   }, []);
@@ -355,6 +381,8 @@ export default function ClawPage() {
               patrol_enabled?: boolean;
               agents?: PoliceState["agents"];
               flags?: PoliceState["flags"];
+              case_files?: InvestigationReport[];
+              escalation_level?: string | null;
             };
           };
 
@@ -369,10 +397,29 @@ export default function ClawPage() {
           if (msg.type === "state" && msg.payload) {
             const agents = Array.isArray(msg.payload.agents) ? msg.payload.agents : [];
             const flags = Array.isArray(msg.payload.flags) ? msg.payload.flags : [];
+            const caseFiles = Array.isArray(msg.payload.case_files) ? msg.payload.case_files : [];
             if (typeof window !== "undefined") {
-              console.log("[Claw] Received state:", { agentCount: agents.length, flagCount: flags.length, agents });
+              console.log("[Claw] Received state:", { agentCount: agents.length, flagCount: flags.length, caseCount: caseFiles.length, agents });
             }
-            setPoliceState({ agents, flags });
+            setPoliceState({ agents, flags, case_files: caseFiles, escalation_level: msg.payload.escalation_level });
+            
+            // Merge new case files into IndexedDB and local state
+            if (caseFiles.length > 0) {
+              (async () => {
+                try {
+                  await saveReports(caseFiles);
+                  const allReports = await getAllReports();
+                  setReports(allReports);
+                  // Check if there are new unviewed reports
+                  const unviewed = allReports.filter(r => !r.viewed);
+                  if (unviewed.length > 0) {
+                    setHasNewReports(true);
+                  }
+                } catch {
+                  // Ignore errors
+                }
+              })();
+            }
             return;
           }
 
@@ -689,7 +736,7 @@ export default function ClawPage() {
         {/* Right: sliding agent police panel */}
         <div
           className={`
-            relative flex shrink-0 overflow-hidden border-l border-[var(--pixel-border)] bg-[var(--surface)]
+            relative flex flex-col shrink-0 overflow-hidden border-l border-[var(--pixel-border)] bg-[var(--surface)]
             transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
             ${showAgentPanel ? "flex-1 opacity-100" : "w-0 min-w-0 opacity-0"}
           `}
@@ -698,12 +745,32 @@ export default function ClawPage() {
           {/* Panel content - fills available space */}
           <div 
             className={`
-              h-full w-full
+              flex flex-col h-full
               transition-opacity duration-300 ease-out
               ${showAgentPanel ? "opacity-100" : "opacity-0"}
             `}
           >
-            <SpriteView policeState={policeState} />
+            {/* Sprite world view - takes most space */}
+            <div className="flex-1 min-h-0">
+              <SpriteView policeState={policeState} />
+            </div>
+            
+            {/* Investigation Registry - at bottom */}
+            <div className="shrink-0 border-t border-[var(--pixel-border)] p-2">
+              <InvestigationRegistry
+                reports={reports}
+                selectedId={selectedReportId}
+                onSelect={(id) => {
+                  setSelectedReportId(id);
+                  // Mark as viewed
+                  markReportViewed(id).catch(() => {});
+                  // Update local state to reflect viewed
+                  setReports(prev => prev.map(r => 
+                    r.investigation_id === id ? { ...r, viewed: true } : r
+                  ));
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -736,6 +803,19 @@ export default function ClawPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Investigation Detail Modal ── */}
+      {selectedReportId && (
+        (() => {
+          const report = reports.find(r => r.investigation_id === selectedReportId);
+          return report ? (
+            <InvestigationDetail
+              report={report}
+              onClose={() => setSelectedReportId(null)}
+            />
+          ) : null;
+        })()
       )}
     </div>
   );

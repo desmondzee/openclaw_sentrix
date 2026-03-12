@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 SENTRIX_CONFIG_FILE = ".sentrix_config.json"
 PATROL_FLAGS_FILE = "patrol_flags.jsonl"
+POLICE_DB_FILE = "police.db"
 
 
 def _read_patrol_enabled(log_dir: Path) -> bool:
@@ -62,6 +63,60 @@ def _read_escalation_level(log_dir: Path) -> str | None:
         return None
     except (json.JSONDecodeError, OSError):
         return None
+
+
+def _get_case_files_from_db(log_dir: Path, limit: int = 50) -> list[dict]:
+    """Read case files from police.db SQLite database.
+    
+    Returns list of case file dicts with investigation_id, flag_id, target_agent_id,
+    concluded_at, and parsed case_file data.
+    """
+    import sqlite3
+    db_path = log_dir / POLICE_DB_FILE
+    if not db_path.exists():
+        return []
+    
+    try:
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("PRAGMA journal_mode=WAL;")
+        cur = conn.execute(
+            """SELECT investigation_id, flag_id, source_file, concluded_at, case_file_json
+               FROM case_files ORDER BY concluded_at DESC LIMIT ?""",
+            (limit,),
+        )
+        rows = cur.fetchall()
+        conn.close()
+        
+        case_files = []
+        for r in rows:
+            investigation_id, flag_id, source_file, concluded_at, case_file_json = r
+            try:
+                case_data = json.loads(case_file_json) if case_file_json else {}
+            except json.JSONDecodeError:
+                case_data = {}
+            
+            # Extract agent name from source_file if available
+            # source_file format: {agent_id}_{timestamp}.json
+            target_agent_id = None
+            if source_file:
+                # Remove .json suffix and timestamp, keep agent_id part
+                source_base = source_file.replace(".json", "")
+                parts = source_base.rsplit("_", 1)
+                if parts:
+                    target_agent_id = parts[0]
+            
+            case_files.append({
+                "investigation_id": investigation_id,
+                "flag_id": flag_id,
+                "target_agent_id": target_agent_id,
+                "source_file": source_file,
+                "concluded_at": concluded_at,
+                "case_file": case_data,
+            })
+        return case_files
+    except (sqlite3.Error, OSError) as e:
+        logger.debug(f"[get_case_files] Error reading police DB: {e}")
+        return []
 
 
 def _get_agents_from_log_dir(log_dir: Path, max_subagents: int = 3) -> tuple[list[dict], dict[str, str]]:
@@ -572,7 +627,8 @@ async def _proxy_connection(
                                     agents, log_file_to_agent = _get_agents_from_log_dir(log_dir, max_subagents)
                                     flags = _get_flags_from_log_dir(log_dir, log_file_to_agent)
                                     escalation_level = _read_escalation_level(log_dir)
-                                    logger.debug(f"[get_state] Returning {len(agents)} agents, {len(flags)} flags, escalation={escalation_level}")
+                                    case_files = _get_case_files_from_db(log_dir, limit=50)
+                                    logger.debug(f"[get_state] Returning {len(agents)} agents, {len(flags)} flags, {len(case_files)} cases, escalation={escalation_level}")
                                     for a in agents:
                                         logger.debug(f"  - {a.get('name')} ({a.get('role')}): {a.get('sessionKey', 'no-session-key')[:20]}...")
                                     # Log flag details including target_agent_id
@@ -580,7 +636,12 @@ async def _proxy_connection(
                                         logger.debug(f"  - flag: {f.get('flag_id', 'unknown')[:8]}... target_agent={f.get('target_agent_id', 'unknown')[:8]}...")
                                     await browser_ws.send(json.dumps({
                                         "type": "state",
-                                        "payload": {"agents": agents, "flags": flags, "escalation_level": escalation_level},
+                                        "payload": {
+                                            "agents": agents,
+                                            "flags": flags,
+                                            "escalation_level": escalation_level,
+                                            "case_files": case_files,
+                                        },
                                     }))
                                     continue
 

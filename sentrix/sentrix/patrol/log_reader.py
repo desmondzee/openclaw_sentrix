@@ -9,18 +9,41 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
 # Pattern for log filenames: YYYYMMDDTHHMMSS.json
-_TS_FILENAME = re.compile(r"^\d{8}T\d{6}\.json$")
+_TS_FILENAME = re.compile(r"^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})\.json$")
 
 
-def _log_files_sorted(log_dir: Path) -> list[Path]:
-    """Return all *.json files in log_dir sorted by name (timestamp order)."""
+def _filename_to_epoch_ms(name: str) -> int | None:
+    """Parse YYYYMMDDTHHMMSS.json to epoch milliseconds (UTC). Returns None if not parseable."""
+    m = _TS_FILENAME.match(name)
+    if not m:
+        return None
+    y, mo, d, h, mi, s = (int(m.group(i)) for i in range(1, 7))
+    try:
+        dt = datetime(y, mo, d, h, mi, s, tzinfo=timezone.utc)
+        return int(dt.timestamp() * 1000)
+    except (ValueError, OverflowError):
+        return None
+
+
+def _log_files_sorted(log_dir: Path, min_ts: int = 0) -> list[Path]:
+    """Return *.json files in log_dir sorted by name. If min_ts > 0, only include files whose filename timestamp (YYYYMMDDTHHMMSS) is >= min_ts (session start), so we don't read logs from previous sessions."""
     if not log_dir.exists():
         return []
-    return sorted(log_dir.glob("*.json"), key=lambda p: p.name)
+    paths = sorted(log_dir.glob("*.json"), key=lambda p: p.name)
+    if min_ts <= 0:
+        return paths
+    # Only include timestamped log files (YYYYMMDDTHHMMSS.json) from this session (filename >= min_ts).
+    out = []
+    for p in paths:
+        ts_ms = _filename_to_epoch_ms(p.name)
+        if ts_ms is not None and ts_ms >= min_ts:
+            out.append(p)
+    return out
 
 
 def _extract_messages_from_event(ev: dict[str, Any]) -> list[dict] | None:
@@ -80,7 +103,7 @@ def iter_turns(
     in this set (incremental read).
     """
     seen_run_id_ts = after_run_id_ts or set()
-    for path in _log_files_sorted(log_dir):
+    for path in _log_files_sorted(log_dir, min_ts):
         try:
             raw = path.read_text(encoding="utf-8")
         except OSError:
