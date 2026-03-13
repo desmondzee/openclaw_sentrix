@@ -234,7 +234,7 @@ export function InstallationGuide() {
           <p className="text-gray-500 text-xs font-mono text-center">
             Requires Python 3.10+ and Docker Desktop.{" "}
             <a
-              href="https://docs.openclaw-sentrix.ai"
+              href="https://pypi.org/project/openclaw-sentrix/#description"
               target="_blank"
               rel="noopener noreferrer"
               className="text-[var(--accent)] hover:underline cursor-pointer"

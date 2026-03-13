@@ -25,23 +25,6 @@ const footerLinks = {
   ],
 };
 
-const backers = [
-  { name: "NVIDIA", tier: "technology" },
-  { name: "Dawn Capital", tier: "investor" },
-  { name: "Entrepreneurs First", tier: "investor" },
-  { name: "Tracer", tier: "investor" },
-  { name: "Odin", tier: "investor" },
-  { name: "Prolific", tier: "partner" },
-  { name: "Crane", tier: "investor" },
-  { name: "Cooley", tier: "partner" },
-  { name: "Encord", tier: "partner" },
-  { name: "N47", tier: "investor" },
-  { name: "Doubleword", tier: "partner" },
-  { name: "UCL", tier: "academic" },
-  { name: "Cambridge", tier: "academic" },
-  { name: "Granola", tier: "partner" },
-];
-
 const foundingTeam = [
   { 
     name: "Shashank", 
@@ -72,25 +55,6 @@ const foundingTeam = [
     github: "#"
   },
 ];
-
-function BackerLogo({ name, tier }: { name: string; tier: string }) {
-  const tierStyles: Record<string, string> = {
-    technology: "text-white font-bold",
-    investor: "text-gray-300",
-    partner: "text-gray-400",
-    academic: "text-gray-400 italic",
-  };
-
-  return (
-    <motion.div
-      whileHover={{ scale: 1.05 }}
-      className={`px-4 py-2 bg-white/5 rounded-lg border border-white/10 font-mono text-sm whitespace-nowrap cursor-pointer hover:bg-white/10 transition-colors ${tierStyles[tier]}`}
-      title={`${name} — ${tier}`}
-    >
-      {name}
-    </motion.div>
-  );
-}
 
 export function Footer() {
   return (
@@ -226,24 +190,6 @@ export function Footer() {
             </ul>
           </motion.div>
         </div>
-
-        {/* Backers Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="mt-16 pt-12 border-t border-white/5"
-        >
-          <h4 className="text-center font-mono text-sm text-gray-500 uppercase tracking-wider mb-6">
-            Backed by industry leaders
-          </h4>
-          <div className="flex flex-wrap justify-center gap-3">
-            {backers.map((backer) => (
-              <BackerLogo key={backer.name} name={backer.name} tier={backer.tier} />
-            ))}
-          </div>
-        </motion.div>
 
         {/* Founding Team Section */}
         <motion.div

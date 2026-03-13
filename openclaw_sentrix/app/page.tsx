@@ -113,7 +113,7 @@ export default function Home() {
                 Public Beta
               </a>
               <a
-                href="https://docs.openclaw-sentrix.ai"
+                href="https://pypi.org/project/openclaw-sentrix/#description"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-6 py-4 bg-white/5 border border-white/10 text-gray-300 font-mono font-medium rounded-lg hover:bg-white/10 transition-all cursor-pointer"

@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { AnimatedSprite } from "./AnimatedSprite";
+import { BackersMarquee } from "./BackersMarquee";
 
 export function Tech() {
     return (
@@ -91,6 +92,9 @@ export function Tech() {
                         </ul>
                     </div>
                 </div>
+
+                {/* Backers Marquee */}
+                <BackersMarquee />
             </motion.div>
         </section>
     );
