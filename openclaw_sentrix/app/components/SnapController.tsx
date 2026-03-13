@@ -4,21 +4,11 @@ import { useLenis } from "lenis/react";
 import { useEffect, useRef, useState } from "react";
 
 // Hardcoded snap points (in pixels) for consistent snapping
-// Calculated based on actual section heights:
-// - Hero: ~90vh (~850px on 1080p)
-// - Problem: ~500px content + padding
-// - Capture Sequence: 520vh (~5600px scroll distance)
-// - Solution: ~600px
-// - Install: ~700px
-// - Tech: ~800px
+// Positioned to show section badges with padding above
 const SNAP_POINTS = [
   0,        // Hero - top of page
-  950,      // Problem section start
-  1600,     // Capture Sequence (entry point)
-  4500,     // Capture Sequence (middle - can see the chase)
-  7200,     // Solution section
-  8000,     // Install section  
-  8800,     // Tech/Nemotron section
+  7000,     // Solution section - above "THE ARCHITECTURE" with padding
+  8100,     // Install section - above "GET STARTED" with padding  
 ];
 
 // Check if device is mobile/touch-based

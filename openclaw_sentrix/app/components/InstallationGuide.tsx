@@ -183,9 +183,9 @@ export function InstallationGuide() {
         className="flex justify-center mb-8"
       >
         <div ref={tabsRef} className="inline-flex bg-[var(--surface)] p-1 rounded-lg pixel-border relative">
-          {/* Sliding indicator - same as header nav */}
+          {/* Sliding indicator - solid purple */}
           <motion.div
-            className="absolute h-8 bg-[var(--accent)]/10 rounded-md border border-[var(--accent)]/30"
+            className="absolute h-[calc(100%-8px)] top-1 bg-[var(--accent)] rounded-md shadow-lg shadow-[var(--accent)]/20"
             animate={{
               left: indicatorStyle.left,
               width: indicatorStyle.width,

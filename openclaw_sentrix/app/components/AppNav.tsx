@@ -98,7 +98,7 @@ export function AppNav() {
       router.push("/#install");
     } else {
       // Hardcoded snap point for Install section (matches SnapController)
-      const INSTALL_SNAP_POINT = 8000;
+      const INSTALL_SNAP_POINT = 8100;
       window.scrollTo({ top: INSTALL_SNAP_POINT, behavior: "smooth" });
     }
   };
