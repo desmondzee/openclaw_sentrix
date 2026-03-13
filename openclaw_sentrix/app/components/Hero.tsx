@@ -82,15 +82,10 @@ export function Hero() {
         {/* Primary CTA - Public Beta */}
         <Link
           href="/claw"
-          className="group relative inline-flex items-center gap-2 px-8 py-4 bg-[var(--accent)] text-white font-mono font-semibold rounded-lg overflow-hidden cursor-pointer hover:shadow-lg hover:shadow-[var(--accent)]/25 transition-all duration-300"
+          className="group inline-flex items-center gap-2 px-8 py-4 bg-[var(--accent)] text-white font-mono font-semibold rounded-lg cursor-pointer hover:shadow-lg hover:shadow-[var(--accent)]/25 hover:scale-105 transition-all duration-300"
         >
-          <span className="relative z-10 flex items-center gap-2">Public Beta</span>
-          <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
-          <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-[var(--accent)] to-[var(--accent-dim)]"
-            whileHover={{ scale: 1.05 }}
-            transition={{ duration: 0.3 }}
-          />
+          <span>Public Beta</span>
+          <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
         </Link>
 
         {/* Secondary CTA - Documentation */}

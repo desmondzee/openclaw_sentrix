@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
-import { clsx } from "clsx";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Terminal, Home, Sparkles } from "lucide-react";
 import Image from "next/image";
@@ -12,7 +11,36 @@ export function AppNav() {
   const pathname = usePathname();
   const isHome = pathname === "/";
   const isClaw = pathname === "/claw";
-  const [activeSection, setActiveSection] = useState<"home" | "install">("home");
+  const [activeSection, setActiveSection] = useState<"home" | "install" | "claw">(isClaw ? "claw" : "home");
+  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
+  const navRef = useRef<HTMLDivElement>(null);
+  const homeRef = useRef<HTMLButtonElement>(null);
+  const installRef = useRef<HTMLButtonElement>(null);
+  const clawRef = useRef<HTMLAnchorElement>(null);
+
+  // Update indicator position when active section changes
+  useEffect(() => {
+    const updateIndicator = () => {
+      const targetRef = activeSection === "install" 
+        ? installRef.current 
+        : activeSection === "claw" 
+          ? clawRef.current 
+          : homeRef.current;
+
+      if (targetRef && navRef.current) {
+        const navRect = navRef.current.getBoundingClientRect();
+        const targetRect = targetRef.getBoundingClientRect();
+        setIndicatorStyle({
+          left: targetRect.left - navRect.left,
+          width: targetRect.width,
+        });
+      }
+    };
+
+    updateIndicator();
+    window.addEventListener("resize", updateIndicator);
+    return () => window.removeEventListener("resize", updateIndicator);
+  }, [activeSection]);
 
   // Track scroll position to highlight Install when in that section
   useEffect(() => {
@@ -23,29 +51,32 @@ export function AppNav() {
       if (!installSection) return;
 
       const rect = installSection.getBoundingClientRect();
-      const navHeight = 56; // Height of the nav
+      const navHeight = 56;
       
-      // Consider "in install section" when the section top is near/past the nav
-      // and the section bottom hasn't passed the viewport
       const isInInstall = rect.top <= navHeight + 100 && rect.bottom >= navHeight;
       
-      setActiveSection(isInInstall ? "install" : "home");
+      if (isInInstall && activeSection !== "install") {
+        setActiveSection("install");
+      } else if (!isInInstall && activeSection === "install") {
+        setActiveSection("home");
+      }
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll(); // Check initial position
+    handleScroll();
 
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [isHome]);
+  }, [isHome, activeSection]);
 
   const scrollToTop = () => {
+    setActiveSection("home");
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
-  const scrollToInstall = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const scrollToInstall = () => {
+    setActiveSection("install");
     const installSection = document.getElementById("install");
     if (installSection) {
       const navHeight = 56;
@@ -83,40 +114,38 @@ export function AppNav() {
             <span className="select-none">Sentrix</span>
           </Link>
 
-          <div className="hidden sm:flex items-center gap-1">
-            <Link
-              href="/"
+          <div ref={navRef} className="hidden sm:flex items-center gap-1 relative">
+            {/* Sliding indicator */}
+            <motion.div
+              className="absolute h-8 bg-[var(--accent)]/10 rounded-md border border-[var(--accent)]/30"
+              animate={{
+                left: indicatorStyle.left,
+                width: indicatorStyle.width,
+              }}
+              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            />
+
+            <button
+              ref={homeRef}
               onClick={scrollToTop}
-              className={clsx(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md font-mono text-sm transition-all cursor-pointer",
-                isHome && activeSection === "home"
-                  ? "text-[var(--accent)] bg-[var(--accent)]/10"
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
-              )}
+              className="relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-md font-mono text-sm transition-colors cursor-pointer text-gray-400 hover:text-white"
             >
               <Home className="w-4 h-4" />
               <span>Home</span>
-            </Link>
+            </button>
             <button
+              ref={installRef}
               onClick={scrollToInstall}
-              className={clsx(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md font-mono text-sm transition-all cursor-pointer",
-                isHome && activeSection === "install"
-                  ? "text-[var(--accent)] bg-[var(--accent)]/10"
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
-              )}
+              className="relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-md font-mono text-sm transition-colors cursor-pointer text-gray-400 hover:text-white"
             >
               <Terminal className="w-4 h-4" />
               <span>Install</span>
             </button>
             <Link
+              ref={clawRef}
               href="/claw"
-              className={clsx(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md font-mono text-sm transition-all cursor-pointer",
-                isClaw
-                  ? "text-[var(--accent)] bg-[var(--accent)]/10"
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
-              )}
+              onClick={() => setActiveSection("claw")}
+              className="relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-md font-mono text-sm transition-colors cursor-pointer text-gray-400 hover:text-white"
             >
               <span>Claw</span>
             </Link>

@@ -45,7 +45,7 @@ export default function Home() {
         </section>
 
         {/* Installation Guide */}
-        <section data-snap-section id="install" className="w-full bg-gradient-to-b from-transparent via-[var(--accent)]/5 to-transparent">
+        <section data-snap-section id="install" className="w-full bg-gradient-to-b from-transparent via-[var(--accent)]/5 to-transparent py-16">
           <InstallationGuide />
         </section>
 

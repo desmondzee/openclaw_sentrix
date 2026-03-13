@@ -3,6 +3,7 @@ import { Silkscreen, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { SmoothScroll } from "./components/SmoothScroll";
 import { AppNav } from "./components/AppNav";
+import { GTCBanner } from "./components/GTCBanner";
 
 const silkscreen = Silkscreen({
   weight: ["400", "700"],
@@ -33,6 +34,7 @@ export default function RootLayout({
       >
         <SmoothScroll>
           <AppNav />
+          <GTCBanner />
           <div className="pt-14">{children}</div>
         </SmoothScroll>
       </body>

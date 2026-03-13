@@ -18,10 +18,9 @@ const footerLinks = {
     { label: "Contact", href: "mailto:hello@sentrix.ai" },
   ],
   resources: [
-    { label: "Community", href: "#community" },
+    { label: "PyPI Package", href: "https://pypi.org/project/openclaw-sentrix/", external: true },
     { label: "GitHub", href: "https://github.com/desmondzee/openclaw_sentrix", external: true },
     { label: "HuggingFace", href: "https://huggingface.co/akoniti", external: true },
-    { label: "Status", href: "#status" },
   ],
 };
 
@@ -175,6 +174,10 @@ export function Footer() {
                   </Link>
                 </li>
               ))}
+              <li className="flex items-center gap-2 text-sm text-gray-400">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <span>All systems up</span>
+              </li>
             </ul>
           </motion.div>
         </div>

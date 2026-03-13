@@ -22,7 +22,7 @@ const backers = [
 function BackerItem({ name }: { name: string }) {
   return (
     <div className="flex-shrink-0 px-3 py-3">
-      <div className="px-5 py-2.5 bg-white/5 border border-white/10 rounded-lg font-mono text-sm text-gray-400 whitespace-nowrap hover:border-[var(--accent)]/50 hover:text-[var(--accent)] hover:bg-[var(--accent)]/5 transition-all cursor-pointer">
+      <div className="px-5 py-2.5 rounded-lg font-mono text-sm text-gray-400 whitespace-nowrap hover:border-[var(--accent)]/50 hover:text-[var(--accent)] hover:bg-[var(--accent)]/5 border border-transparent hover:border-[var(--accent)]/50 transition-all cursor-pointer">
         {name}
       </div>
     </div>
