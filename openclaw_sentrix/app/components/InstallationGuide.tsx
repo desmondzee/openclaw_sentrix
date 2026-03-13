@@ -138,9 +138,9 @@ export function InstallationGuide() {
       if (targetRef && tabsRef.current) {
         const tabsRect = tabsRef.current.getBoundingClientRect();
         const targetRect = targetRef.getBoundingClientRect();
-        // Add the padding offset of the container (p-1 = 4px)
+        // Account for container padding (p-1 = 4px)
         setIndicatorStyle({
-          left: targetRect.left - tabsRect.left,
+          left: targetRect.left - tabsRect.left - 4,
           width: targetRect.width,
         });
       }
@@ -184,17 +184,23 @@ export function InstallationGuide() {
         className="flex justify-center mb-8"
       >
         <div ref={tabsRef} className="inline-flex bg-[var(--surface)] p-1 rounded-lg pixel-border relative">
-          {/* Sliding indicator */}
+          {/* Sliding indicator with stretch effect */}
           <motion.div
             className="absolute h-[calc(100%-8px)] top-1 bg-[var(--accent)] rounded-md shadow-lg shadow-[var(--accent)]/20"
+            initial={false}
             animate={{
               left: indicatorStyle.left,
               width: indicatorStyle.width,
+              scaleX: [1, 1.15, 1],
             }}
             transition={{ 
-              type: "tween",
-              duration: 0.4,
-              ease: [0.4, 0, 0.2, 1] // ease-in-out: slower start, faster middle, slower end
+              left: { type: "tween", duration: 0.5, ease: [0.25, 0.1, 0.25, 1] },
+              width: { type: "tween", duration: 0.5, ease: [0.25, 0.1, 0.25, 1] },
+              scaleX: { 
+                duration: 0.5, 
+                times: [0, 0.5, 1],
+                ease: "easeInOut"
+              }
             }}
           />
           {osTabs.map((tab) => (

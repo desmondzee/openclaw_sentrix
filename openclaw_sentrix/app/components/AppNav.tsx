@@ -69,6 +69,15 @@ export function AppNav() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [isHome, activeSection]);
 
+  // Set active section on mount based on pathname
+  useEffect(() => {
+    if (isClaw) {
+      setActiveSection("claw");
+    } else if (isHome) {
+      setActiveSection("home");
+    }
+  }, [isClaw, isHome]);
+
   const scrollToTop = () => {
     setActiveSection("home");
     if (!isHome) {
@@ -88,13 +97,9 @@ export function AppNav() {
       // Navigate to home first, then scroll to install section
       router.push("/#install");
     } else {
-      const installSection = document.getElementById("install");
-      if (installSection) {
-        const navHeight = 56;
-        const rect = installSection.getBoundingClientRect();
-        const scrollTop = window.pageYOffset + rect.top - navHeight - 20;
-        window.scrollTo({ top: scrollTop, behavior: "smooth" });
-      }
+      // Hardcoded snap point for Install section (matches SnapController)
+      const INSTALL_SNAP_POINT = 3600;
+      window.scrollTo({ top: INSTALL_SNAP_POINT, behavior: "smooth" });
     }
   };
 

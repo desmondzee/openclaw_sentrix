@@ -8,7 +8,7 @@ import { ArrowRight, Sparkles } from "lucide-react";
 
 export function Hero() {
   return (
-    <section className="relative w-full flex flex-col items-center justify-center min-h-[90vh] px-6 text-center overflow-hidden">
+    <section className="relative w-full flex flex-col items-center justify-center min-h-[90vh] px-6 text-center overflow-hidden pt-10">
       {/* Background Roaming Agents */}
       <AnimatedSprite
         spritesheet="/assets/patrol.png"
