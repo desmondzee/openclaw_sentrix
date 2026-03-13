@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Terminal, Home, Sparkles } from "lucide-react";
@@ -9,6 +9,7 @@ import Image from "next/image";
 
 export function AppNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const isHome = pathname === "/";
   const isClaw = pathname === "/claw";
   const [activeSection, setActiveSection] = useState<"home" | "install" | "claw">(isClaw ? "claw" : "home");
@@ -70,19 +71,30 @@ export function AppNav() {
 
   const scrollToTop = () => {
     setActiveSection("home");
-    if (typeof window !== "undefined") {
+    if (!isHome) {
+      // Navigate to home first, then scroll
+      router.push("/");
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }, 100);
+    } else if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
   const scrollToInstall = () => {
     setActiveSection("install");
-    const installSection = document.getElementById("install");
-    if (installSection) {
-      const navHeight = 56;
-      const rect = installSection.getBoundingClientRect();
-      const scrollTop = window.pageYOffset + rect.top - navHeight - 20;
-      window.scrollTo({ top: scrollTop, behavior: "smooth" });
+    if (!isHome) {
+      // Navigate to home first, then scroll to install section
+      router.push("/#install");
+    } else {
+      const installSection = document.getElementById("install");
+      if (installSection) {
+        const navHeight = 56;
+        const rect = installSection.getBoundingClientRect();
+        const scrollTop = window.pageYOffset + rect.top - navHeight - 20;
+        window.scrollTo({ top: scrollTop, behavior: "smooth" });
+      }
     }
   };
 

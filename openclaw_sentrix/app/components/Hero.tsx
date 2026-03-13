@@ -45,7 +45,7 @@ export function Hero() {
       >
         <Link
           href="/claw"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--accent)]/10 border border-[var(--accent)]/30 rounded-full text-[var(--accent)] font-mono text-sm hover:bg-[var(--accent)]/20 transition-all cursor-pointer group"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--accent)]/10 border border-[var(--accent)]/30 rounded-full text-[var(--accent)] font-mono text-sm hover:bg-[var(--accent)]/20 hover:border-[var(--accent)]/50 transition-all cursor-pointer group"
         >
           <Sparkles className="w-4 h-4" />
           <span>Now in Public Beta</span>
@@ -82,7 +82,7 @@ export function Hero() {
         {/* Primary CTA - Public Beta */}
         <Link
           href="/claw"
-          className="group inline-flex items-center gap-2 px-8 py-4 bg-[var(--accent)] text-white font-mono font-semibold rounded-lg cursor-pointer hover:shadow-lg hover:shadow-[var(--accent)]/25 hover:scale-105 transition-all duration-300"
+          className="group inline-flex items-center gap-2 px-8 py-4 bg-[var(--accent)] text-white font-mono font-semibold rounded-lg cursor-pointer hover:shadow-lg hover:shadow-[var(--accent)]/25 hover:bg-[var(--accent)]/90 transition-all duration-300"
         >
           <span>Public Beta</span>
           <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />

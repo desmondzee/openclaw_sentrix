@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Apple, Monitor, Terminal, Copy, Check, Container } from "lucide-react";
 
@@ -122,6 +122,33 @@ function CopyButton({ text }: { text: string }) {
 
 export function InstallationGuide() {
   const [activeOS, setActiveOS] = useState<OS>("macos");
+  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const macosRef = useRef<HTMLButtonElement>(null);
+  const windowsRef = useRef<HTMLButtonElement>(null);
+  const linuxRef = useRef<HTMLButtonElement>(null);
+
+  // Update sliding indicator position
+  useEffect(() => {
+    const updateIndicator = () => {
+      const targetRef = activeOS === "macos" ? macosRef.current 
+        : activeOS === "windows" ? windowsRef.current 
+        : linuxRef.current;
+      
+      if (targetRef && tabsRef.current) {
+        const tabsRect = tabsRef.current.getBoundingClientRect();
+        const targetRect = targetRef.getBoundingClientRect();
+        setIndicatorStyle({
+          left: targetRect.left - tabsRect.left,
+          width: targetRect.width,
+        });
+      }
+    };
+
+    updateIndicator();
+    window.addEventListener("resize", updateIndicator);
+    return () => window.removeEventListener("resize", updateIndicator);
+  }, [activeOS]);
 
   return (
     <section className="relative w-full py-24 px-6 md:px-12 max-w-4xl mx-auto">
@@ -151,15 +178,25 @@ export function InstallationGuide() {
         transition={{ duration: 0.5, delay: 0.2 }}
         className="flex justify-center mb-8"
       >
-        <div className="inline-flex bg-[var(--surface)] p-1 rounded-lg pixel-border">
+        <div ref={tabsRef} className="inline-flex bg-[var(--surface)] p-1 rounded-lg pixel-border relative">
+          {/* Sliding indicator */}
+          <motion.div
+            className="absolute h-[calc(100%-8px)] top-1 bg-[var(--accent)] rounded-md shadow-lg shadow-[var(--accent)]/20"
+            animate={{
+              left: indicatorStyle.left + 4,
+              width: indicatorStyle.width,
+            }}
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+          />
           {osTabs.map((tab) => (
             <button
               key={tab.id}
+              ref={tab.id === "macos" ? macosRef : tab.id === "windows" ? windowsRef : linuxRef}
               onClick={() => setActiveOS(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md font-mono text-sm transition-all duration-300 cursor-pointer ${
+              className={`relative z-10 flex items-center gap-2 px-4 py-2 rounded-md font-mono text-sm transition-colors duration-200 cursor-pointer ${
                 activeOS === tab.id
-                  ? "bg-[var(--accent)] text-white shadow-lg shadow-[var(--accent)]/20"
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
+                  ? "text-white"
+                  : "text-gray-400 hover:text-white"
               }`}
             >
               {tab.icon}

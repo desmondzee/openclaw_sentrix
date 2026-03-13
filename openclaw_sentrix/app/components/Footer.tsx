@@ -237,14 +237,14 @@ export function Footer() {
           <p className="text-gray-500 text-sm font-mono">
             © {new Date().getFullYear()} Sentrix Swarms. All rights reserved.
           </p>
-          <div className="flex gap-6">
-            <Link href="#privacy" className="text-gray-500 hover:text-gray-300 text-sm font-mono transition-colors cursor-pointer">
-              Privacy Policy
-            </Link>
-            <Link href="#terms" className="text-gray-500 hover:text-gray-300 text-sm font-mono transition-colors cursor-pointer">
-              Terms of Service
-            </Link>
-          </div>
+          <a 
+            href="https://opensource.org/licenses/MIT" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-gray-500 hover:text-[var(--accent)] text-sm font-mono transition-colors cursor-pointer"
+          >
+            Open Source under MIT License
+          </a>
         </div>
       </div>
     </footer>

@@ -20,6 +20,11 @@ export const metadata: Metadata = {
   title: "Sentrix — Agentic police for your AI",
   description:
     "Next-gen agentic guardrails. Patrol teams and investigators that police your agents and keep autonomous AI in check.",
+  icons: {
+    icon: "/sentrix_bw_logo.png",
+    shortcut: "/sentrix_bw_logo.png",
+    apple: "/sentrix_bw_logo.png",
+  },
 };
 
 export default function RootLayout({
