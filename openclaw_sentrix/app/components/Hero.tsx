@@ -79,12 +79,12 @@ export function Hero() {
         transition={{ duration: 0.5, delay: 0.3 }}
         className="mt-10 w-full flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10"
       >
-        {/* Primary CTA - Test Our Product */}
+        {/* Primary CTA - Public Beta */}
         <Link
           href="/claw"
           className="group relative inline-flex items-center gap-2 px-8 py-4 bg-[var(--accent)] text-white font-mono font-semibold rounded-lg overflow-hidden cursor-pointer hover:shadow-lg hover:shadow-[var(--accent)]/25 transition-all duration-300"
         >
-          <span className="relative z-10">Test Our Product</span>
+          <span className="relative z-10 flex items-center gap-2">Public Beta</span>
           <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
           <motion.div
             className="absolute inset-0 bg-gradient-to-r from-[var(--accent)] to-[var(--accent-dim)]"

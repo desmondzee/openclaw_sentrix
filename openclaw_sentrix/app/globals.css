@@ -34,6 +34,15 @@ body {
   image-rendering: crisp-edges;
 }
 
+/* Prevent image dragging */
+img {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+}
+
 /* Smooth entrance animations */
 @keyframes fade-in-up {
   from {

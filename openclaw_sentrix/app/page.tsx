@@ -110,7 +110,7 @@ export default function Home() {
                 href="/claw"
                 className="inline-flex items-center gap-2 px-8 py-4 bg-[var(--accent)] text-white font-mono font-semibold rounded-lg hover:shadow-lg hover:shadow-[var(--accent)]/25 transition-all cursor-pointer"
               >
-                Test Our Product
+                Public Beta
               </a>
               <a
                 href="https://docs.openclaw-sentrix.ai"

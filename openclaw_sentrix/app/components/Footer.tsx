@@ -19,7 +19,7 @@ const footerLinks = {
   ],
   resources: [
     { label: "Community", href: "#community" },
-    { label: "GitHub", href: "https://github.com/sentrix", external: true },
+    { label: "GitHub", href: "https://github.com/desmondzee/openclaw_sentrix", external: true },
     { label: "HuggingFace", href: "https://huggingface.co/akoniti", external: true },
     { label: "Status", href: "#status" },
   ],
@@ -118,7 +118,7 @@ export function Footer() {
             </p>
             <div className="flex gap-3 pt-2">
               <a
-                href="https://github.com/sentrix"
+                href="https://github.com/desmondzee/openclaw_sentrix"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all cursor-pointer"
@@ -272,7 +272,7 @@ export function Footer() {
                   {member.linkedin && (
                     <a
                       href={member.linkedin}
-                      className="text-gray-500 hover:text-white transition-colors"
+                      className="text-gray-500 hover:text-white transition-colors cursor-pointer"
                       aria-label={`${member.name}'s LinkedIn`}
                     >
                       <Linkedin className="w-4 h-4" />
@@ -281,7 +281,7 @@ export function Footer() {
                   {member.twitter && (
                     <a
                       href={member.twitter}
-                      className="text-gray-500 hover:text-white transition-colors"
+                      className="text-gray-500 hover:text-white transition-colors cursor-pointer"
                       aria-label={`${member.name}'s Twitter`}
                     >
                       <Twitter className="w-4 h-4" />
@@ -290,7 +290,7 @@ export function Footer() {
                   {member.github && (
                     <a
                       href={member.github}
-                      className="text-gray-500 hover:text-white transition-colors"
+                      className="text-gray-500 hover:text-white transition-colors cursor-pointer"
                       aria-label={`${member.name}'s GitHub`}
                     >
                       <Github className="w-4 h-4" />
