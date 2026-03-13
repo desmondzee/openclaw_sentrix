@@ -32,7 +32,7 @@ export default function Home() {
         </section>
 
         {/* Problem Section */}
-        <section data-snap-section className="w-full">
+        <section data-snap-section id="problem" className="w-full">
           <Problem />
         </section>
 
@@ -42,12 +42,12 @@ export default function Home() {
         </section>
 
         {/* Solution Section */}
-        <section data-snap-section className="w-full">
+        <section data-snap-section id="solution" className="w-full">
           <Solution />
         </section>
 
         {/* Installation Guide */}
-        <section data-snap-section id="install" className="w-full bg-gradient-to-b from-transparent via-[var(--accent)]/5 to-transparent py-16">
+        <section data-snap-section id="install" className="w-full bg-gradient-to-b from-transparent via-[var(--accent)]/5 to-transparent">
           <InstallationGuide />
         </section>
 

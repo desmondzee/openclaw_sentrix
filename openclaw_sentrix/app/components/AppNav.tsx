@@ -97,9 +97,12 @@ export function AppNav() {
       // Navigate to home first, then scroll to install section
       router.push("/#install");
     } else {
-      // Hardcoded snap point for Install section (matches SnapController)
-      const INSTALL_SNAP_POINT = 8100;
-      window.scrollTo({ top: INSTALL_SNAP_POINT, behavior: "smooth" });
+      // Scroll to install section with 80px offset (matches snap)
+      const installSection = document.getElementById("install");
+      if (installSection) {
+        const scrollTop = installSection.offsetTop -0;
+        window.scrollTo({ top: scrollTop, behavior: "smooth" });
+      }
     }
   };
 
