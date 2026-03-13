@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Github, Twitter, Linkedin, Mail, ExternalLink } from "lucide-react";
+import { Github, Linkedin, Mail, ExternalLink } from "lucide-react";
 
 const footerLinks = {
   product: [
@@ -27,32 +27,18 @@ const footerLinks = {
 
 const foundingTeam = [
   { 
-    name: "Shashank", 
-    role: "CEO & Co-founder",
-    bio: "Former police officer with deep expertise in forensics and law enforcement.",
-    linkedin: "#",
-    twitter: "#"
+    name: "Desmond Zee", 
+    role: "Co-founder",
+    bio: "Cambridge BEng. Previous Founder of LetsMove — computer vision for physiotherapy.",
+    linkedin: "https://www.linkedin.com/in/desmond-zee",
+    github: "https://github.com/desmondzee"
   },
   { 
-    name: "J", 
-    role: "CTO & Co-founder",
-    bio: "AI researcher specializing in multi-agent systems and synthetic data generation.",
-    linkedin: "#",
-    github: "#"
-  },
-  { 
-    name: "S", 
-    role: "Chief Scientist",
-    bio: "PhD in ML. Led training of Nemotron-based investigative agents.",
-    linkedin: "#",
-    github: "#"
-  },
-  { 
-    name: "L", 
-    role: "Head of Engineering",
-    bio: "Built scalable agent orchestration systems at leading tech companies.",
-    linkedin: "#",
-    github: "#"
+    name: "Joe Wee Tan", 
+    role: "Co-founder",
+    bio: "UCL BSc CS. Onflow Founding Engineer — UX insights with browser use agents.",
+    linkedin: "https://www.linkedin.com/in/tanweejoe",
+    github: "https://github.com/w3joe"
   },
 ];
 
@@ -91,16 +77,7 @@ export function Footer() {
                 <Github className="w-5 h-5" />
               </a>
               <a
-                href="https://twitter.com/sentrix"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all cursor-pointer"
-                aria-label="Twitter"
-              >
-                <Twitter className="w-5 h-5" />
-              </a>
-              <a
-                href="https://linkedin.com/company/sentrix"
+                href="https://www.linkedin.com/company/sentrixai"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all cursor-pointer"
@@ -109,7 +86,18 @@ export function Footer() {
                 <Linkedin className="w-5 h-5" />
               </a>
               <a
-                href="mailto:hello@sentrix.ai"
+                href="https://huggingface.co/akoniti"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all cursor-pointer"
+                aria-label="HuggingFace"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+                </svg>
+              </a>
+              <a
+                href="mailto:dz386@cam.ac.uk"
                 className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all cursor-pointer"
                 aria-label="Email"
               >
@@ -202,7 +190,7 @@ export function Footer() {
           <h4 className="text-center font-mono text-sm text-gray-500 uppercase tracking-wider mb-8">
             Founding Team
           </h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
             {foundingTeam.map((member) => (
               <motion.div
                 key={member.name}
@@ -218,24 +206,19 @@ export function Footer() {
                   {member.linkedin && (
                     <a
                       href={member.linkedin}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="text-gray-500 hover:text-white transition-colors cursor-pointer"
                       aria-label={`${member.name}'s LinkedIn`}
                     >
                       <Linkedin className="w-4 h-4" />
                     </a>
                   )}
-                  {member.twitter && (
-                    <a
-                      href={member.twitter}
-                      className="text-gray-500 hover:text-white transition-colors cursor-pointer"
-                      aria-label={`${member.name}'s Twitter`}
-                    >
-                      <Twitter className="w-4 h-4" />
-                    </a>
-                  )}
                   {member.github && (
                     <a
                       href={member.github}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="text-gray-500 hover:text-white transition-colors cursor-pointer"
                       aria-label={`${member.name}'s GitHub`}
                     >

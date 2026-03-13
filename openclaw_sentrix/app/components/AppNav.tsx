@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { clsx } from "clsx";
 import { motion } from "framer-motion";
-import { Terminal, Home } from "lucide-react";
+import { Terminal, Home, Star } from "lucide-react";
 import Image from "next/image";
 
 export function AppNav() {
@@ -140,6 +140,7 @@ export function AppNav() {
             href="/claw"
             className="flex items-center gap-1.5 px-4 py-2 bg-[var(--accent)] text-white font-mono text-sm font-semibold rounded-lg hover:shadow-lg hover:shadow-[var(--accent)]/25 transition-all cursor-pointer"
           >
+            <Star className="w-4 h-4 fill-white" />
             <span>Public Beta</span>
           </Link>
         </div>

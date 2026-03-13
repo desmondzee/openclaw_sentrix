@@ -40,7 +40,7 @@ export function Solution() {
                         Meet Your New<br />Police Swarm.
                     </h2>
                     <p className="text-gray-400 text-lg leading-relaxed">
-                        Sentrix is an end-to-end guardrail solution deploying agentic police swarms. Modeled after real police investigation teams, we utilise multiple levels of escalation to ensure the security of autonomous AI systems.
+                        Sentrix is an end-to-end security solution deploying agentic police swarms. Modeled after real police investigation teams, we utilise multiple levels of escalation to ensure the security of autonomous AI systems.
                     </p>
                 </motion.div>
 

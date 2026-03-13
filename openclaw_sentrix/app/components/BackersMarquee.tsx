@@ -22,7 +22,7 @@ const backers = [
 function BackerItem({ name }: { name: string }) {
   return (
     <div className="flex-shrink-0 px-8 py-3">
-      <span className="text-gray-500/60 font-mono text-sm whitespace-nowrap hover:text-gray-400 transition-colors cursor-default">
+      <span className="text-gray-400 font-mono text-sm whitespace-nowrap hover:text-[var(--accent)] transition-colors cursor-default">
         {name}
       </span>
     </div>
@@ -40,7 +40,7 @@ export function BackersMarquee() {
         whileInView={{ opacity: 1 }}
         viewport={{ once: false }}
         transition={{ duration: 0.5 }}
-        className="text-center font-mono text-xs text-gray-600 uppercase tracking-widest mb-6"
+        className="text-center font-mono text-xs text-gray-400 uppercase tracking-widest mb-6"
       >
         Idea backed by
       </motion.p>
