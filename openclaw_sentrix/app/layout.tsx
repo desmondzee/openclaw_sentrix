@@ -20,9 +20,9 @@ export const metadata: Metadata = {
   description:
     "Next-gen agentic guardrails. Patrol teams and investigators that police your agents and keep autonomous AI in check.",
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/favicon.ico",
+    icon: "/favico.ico",
+    shortcut: "/favico.ico",
+    apple: "/favico.ico",
   },
 };
 

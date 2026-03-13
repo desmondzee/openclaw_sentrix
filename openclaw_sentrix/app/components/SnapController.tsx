@@ -1,26 +1,61 @@
 "use client";
 
 import { useLenis } from "lenis/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // Hardcoded snap points (in pixels) for consistent snapping
-// These are calculated based on the layout structure
+// Calculated based on actual section heights:
+// - Hero: ~90vh (~850px on 1080p)
+// - Problem: ~500px content + padding
+// - Capture Sequence: 520vh (~5600px scroll distance)
+// - Solution: ~600px
+// - Install: ~700px
+// - Tech: ~800px
 const SNAP_POINTS = [
   0,        // Hero - top of page
-  900,      // Problem section
-  1800,     // Capture Sequence
-  2700,     // Solution section
-  3600,     // Install section
-  4500,     // Tech section
+  950,      // Problem section start
+  1600,     // Capture Sequence (entry point)
+  4500,     // Capture Sequence (middle - can see the chase)
+  7200,     // Solution section
+  8000,     // Install section  
+  8800,     // Tech/Nemotron section
 ];
+
+// Check if device is mobile/touch-based
+function isMobileDevice(): boolean {
+  if (typeof window === "undefined") return false;
+  
+  // Check for touch capability
+  const hasTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+  
+  // Check for mobile screen size (tablet and below)
+  const isSmallScreen = window.innerWidth < 1024;
+  
+  // Check for mobile user agent
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  );
+  
+  // Disable snap if: has touch AND (small screen OR mobile UA)
+  return hasTouch && (isSmallScreen || isMobileUA);
+}
 
 export function SnapController() {
   const lenis = useLenis();
   const snapRef = useRef<{ destroy: () => void; add: (value: number) => void } | null>(null);
-  const isSnappingRef = useRef(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check mobile status on mount and resize
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(isMobileDevice());
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   useEffect(() => {
-    if (!lenis) return;
+    // Don't initialize snap on mobile devices
+    if (!lenis || isMobile) return;
 
     let cancelled = false;
 
@@ -34,7 +69,7 @@ export function SnapController() {
           duration: 0.6,
           lerp: 0.11,
           easing: (t) => 1 - Math.pow(1 - t, 3),
-          distanceThreshold: "35%",
+          distanceThreshold: "30%",
           debounce: 200,
         });
 
@@ -51,7 +86,7 @@ export function SnapController() {
       snapRef.current?.destroy();
       snapRef.current = null;
     };
-  }, [lenis]);
+  }, [lenis, isMobile]);
 
   return null;
 }
