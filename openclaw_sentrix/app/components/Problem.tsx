@@ -5,7 +5,7 @@ import { AnimatedSprite } from "./AnimatedSprite";
 
 export function Problem() {
     return (
-        <section className="relative w-full py-24 px-6 md:px-12 max-w-5xl mx-auto overflow-hidden">
+        <section className="relative w-full pt-20 pb-24 px-6 md:px-12 max-w-5xl mx-auto overflow-hidden">
 
             {/* Patrol agent sneaking in the background looking for the threat */}
             <AnimatedSprite

@@ -138,6 +138,7 @@ export function InstallationGuide() {
       if (targetRef && tabsRef.current) {
         const tabsRect = tabsRef.current.getBoundingClientRect();
         const targetRect = targetRef.getBoundingClientRect();
+        // Add the padding offset of the container (p-1 = 4px)
         setIndicatorStyle({
           left: targetRect.left - tabsRect.left,
           width: targetRect.width,
@@ -145,13 +146,17 @@ export function InstallationGuide() {
       }
     };
 
-    updateIndicator();
+    // Small delay to ensure DOM is ready
+    const timeoutId = setTimeout(updateIndicator, 0);
     window.addEventListener("resize", updateIndicator);
-    return () => window.removeEventListener("resize", updateIndicator);
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener("resize", updateIndicator);
+    };
   }, [activeOS]);
 
   return (
-    <section className="relative w-full py-24 px-6 md:px-12 max-w-4xl mx-auto">
+    <section className="relative w-full pt-20 pb-24 px-6 md:px-12 max-w-4xl mx-auto">
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -159,7 +164,7 @@ export function InstallationGuide() {
         transition={{ duration: 0.6 }}
         className="text-center mb-12"
       >
-        <div className="inline-block px-3 py-1 bg-[var(--accent)]/10 border border-[var(--accent)]/30 text-[var(--accent)] font-mono text-sm rounded-md mb-4">
+        <div className="inline-block px-3 py-1 bg-[var(--accent)]/10 border border-[var(--accent)]/30 text-[var(--accent)] font-mono text-sm rounded-md mb-2">
           GET STARTED
         </div>
         <h2 className="text-3xl md:text-5xl font-bold font-[family-name:var(--font-pixel)] leading-tight mb-4">
@@ -183,10 +188,14 @@ export function InstallationGuide() {
           <motion.div
             className="absolute h-[calc(100%-8px)] top-1 bg-[var(--accent)] rounded-md shadow-lg shadow-[var(--accent)]/20"
             animate={{
-              left: indicatorStyle.left + 4,
+              left: indicatorStyle.left,
               width: indicatorStyle.width,
             }}
-            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            transition={{ 
+              type: "tween",
+              duration: 0.4,
+              ease: [0.4, 0, 0.2, 1] // ease-in-out: slower start, faster middle, slower end
+            }}
           />
           {osTabs.map((tab) => (
             <button

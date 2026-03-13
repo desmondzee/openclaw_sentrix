@@ -7,15 +7,12 @@ import { Github, Linkedin, Mail, ExternalLink } from "lucide-react";
 const footerLinks = {
   product: [
     { label: "Features", href: "#features" },
-    { label: "Documentation", href: "https://docs.openclaw-sentrix.ai", external: true },
-    { label: "API Reference", href: "#api", external: true },
-    { label: "Changelog", href: "#changelog" },
+    { label: "Documentation", href: "https://pypi.org/project/openclaw-sentrix/#description", external: true },
+    { label: "CLI Reference", href: "https://github.com/desmondzee/openclaw_sentrix/tree/main/sentrix", external: true },
+    { label: "Public Beta", href: "/claw" },
   ],
   company: [
-    { label: "About", href: "#about" },
-    { label: "Blog", href: "#blog" },
-    { label: "Careers", href: "#careers" },
-    { label: "Contact", href: "mailto:hello@sentrix.ai" },
+    { label: "Contact", href: "mailto:dz386@cam.ac.uk" },
   ],
   resources: [
     { label: "PyPI Package", href: "https://pypi.org/project/openclaw-sentrix/", external: true },

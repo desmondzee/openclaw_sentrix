@@ -6,7 +6,7 @@ import { AnimatedSprite } from "./AnimatedSprite";
 
 export function Solution() {
     return (
-        <section className="relative w-full py-32 px-6 overflow-hidden">
+        <section className="relative w-full pt-20 pb-32 px-6 overflow-hidden">
             {/* Background elements */}
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[var(--accent)]/5 to-transparent pointer-events-none" />
 

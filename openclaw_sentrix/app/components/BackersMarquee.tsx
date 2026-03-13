@@ -34,7 +34,7 @@ export function BackersMarquee() {
   const duplicatedBackers = [...backers, ...backers];
 
   return (
-    <div className="w-full mt-16">
+    <div className="w-full mt-16 mb-16">
       <motion.div
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}

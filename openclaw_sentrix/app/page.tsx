@@ -7,10 +7,12 @@ import { Footer } from "./components/Footer";
 import { WaitlistForm } from "./components/WaitlistForm";
 import { AnimatedSprite } from "./components/AnimatedSprite";
 import { CaptureSequence } from "./components/CaptureSequence";
+import { GTCBanner } from "./components/GTCBanner";
 
 export default function Home() {
   return (
     <div className="min-h-screen flex flex-col bg-[var(--background)]">
+      <GTCBanner />
       {/* Subtle grid background that stays fixed */}
       <div
         className="fixed inset-0 opacity-[0.03] pointer-events-none z-0"

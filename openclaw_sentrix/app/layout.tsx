@@ -3,7 +3,6 @@ import { Silkscreen, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { SmoothScroll } from "./components/SmoothScroll";
 import { AppNav } from "./components/AppNav";
-import { GTCBanner } from "./components/GTCBanner";
 
 const silkscreen = Silkscreen({
   weight: ["400", "700"],
@@ -21,9 +20,9 @@ export const metadata: Metadata = {
   description:
     "Next-gen agentic guardrails. Patrol teams and investigators that police your agents and keep autonomous AI in check.",
   icons: {
-    icon: "/sentrix_bw_logo.png",
-    shortcut: "/sentrix_bw_logo.png",
-    apple: "/sentrix_bw_logo.png",
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
   },
 };
 
@@ -39,7 +38,6 @@ export default function RootLayout({
       >
         <SmoothScroll>
           <AppNav />
-          <GTCBanner />
           <div className="pt-14">{children}</div>
         </SmoothScroll>
       </body>
