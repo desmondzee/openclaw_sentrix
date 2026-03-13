@@ -27,15 +27,9 @@ const installSteps: Record<OS, InstallStep[]> = {
       icon: <Container className="w-4 h-4" />,
     },
     {
-      title: "Build the sandbox",
-      command: "sentrix build",
-      description: "This sets up your isolated agent environment.",
-      icon: <Terminal className="w-4 h-4" />,
-    },
-    {
       title: "Launch Sentrix",
       command: "sentrix run",
-      description: "Your agent police force is now active.",
+      description: "Your agent police force is now active. First run will build the sandbox automatically.",
       icon: <Terminal className="w-4 h-4" />,
     },
   ],
@@ -52,15 +46,9 @@ const installSteps: Record<OS, InstallStep[]> = {
       icon: <Container className="w-4 h-4" />,
     },
     {
-      title: "Build the sandbox",
-      command: "sentrix build",
-      description: "This sets up your isolated agent environment.",
-      icon: <Terminal className="w-4 h-4" />,
-    },
-    {
       title: "Launch Sentrix",
       command: "sentrix run",
-      description: "Your agent police force is now active.",
+      description: "Your agent police force is now active. First run will build the sandbox automatically.",
       icon: <Terminal className="w-4 h-4" />,
     },
   ],
@@ -78,15 +66,9 @@ const installSteps: Record<OS, InstallStep[]> = {
       icon: <Container className="w-4 h-4" />,
     },
     {
-      title: "Build the sandbox",
-      command: "sentrix build",
-      description: "This sets up your isolated agent environment.",
-      icon: <Terminal className="w-4 h-4" />,
-    },
-    {
       title: "Launch Sentrix",
       command: "sentrix run",
-      description: "Your agent police force is now active.",
+      description: "Your agent police force is now active. First run will build the sandbox automatically.",
       icon: <Terminal className="w-4 h-4" />,
     },
   ],
@@ -157,7 +139,7 @@ export function InstallationGuide() {
           Deploy in minutes.
         </h2>
         <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-          Get your agent police force up and running with just a few commands.
+          Get your agent police force up and running around openclaw with just a few commands.
         </p>
       </motion.div>
 

@@ -89,11 +89,11 @@ export function Footer() {
                 href="https://huggingface.co/akoniti"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all cursor-pointer"
+                className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-yellow-400 transition-all cursor-pointer"
                 aria-label="HuggingFace"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+                  <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.5 14h-9c-.276 0-.5-.224-.5-.5v-7c0-.276.224-.5.5-.5h9c.276 0 .5.224.5.5v7c0 .276-.224.5-.5.5z"/>
                 </svg>
               </a>
               <a
@@ -192,10 +192,12 @@ export function Footer() {
           </h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
             {foundingTeam.map((member) => (
-              <motion.div
+              <a
                 key={member.name}
-                whileHover={{ y: -4 }}
-                className="p-4 bg-white/5 rounded-lg border border-white/5 hover:border-[var(--accent)]/30 transition-all cursor-pointer group"
+                href={member.linkedin}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block p-4 bg-white/5 rounded-lg border border-white/5 hover:border-[var(--accent)]/30 transition-all cursor-pointer group"
               >
                 <h5 className="font-mono font-semibold text-white group-hover:text-[var(--accent)] transition-colors">
                   {member.name}
@@ -203,30 +205,24 @@ export function Footer() {
                 <p className="text-[var(--accent)] text-sm font-mono mt-1">{member.role}</p>
                 <p className="text-gray-400 text-xs mt-2 leading-relaxed">{member.bio}</p>
                 <div className="flex gap-2 mt-3">
-                  {member.linkedin && (
-                    <a
-                      href={member.linkedin}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-gray-500 hover:text-white transition-colors cursor-pointer"
-                      aria-label={`${member.name}'s LinkedIn`}
-                    >
-                      <Linkedin className="w-4 h-4" />
-                    </a>
-                  )}
+                  <span className="text-gray-500 group-hover:text-white transition-colors">
+                    <Linkedin className="w-4 h-4" />
+                  </span>
                   {member.github && (
-                    <a
-                      href={member.github}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <span
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.open(member.github, '_blank', 'noopener,noreferrer');
+                      }}
                       className="text-gray-500 hover:text-white transition-colors cursor-pointer"
                       aria-label={`${member.name}'s GitHub`}
                     >
                       <Github className="w-4 h-4" />
-                    </a>
+                    </span>
                   )}
                 </div>
-              </motion.div>
+              </a>
             ))}
           </div>
         </motion.div>

@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { WaitlistForm } from "./WaitlistForm";
 import { AnimatedSprite } from "./AnimatedSprite";
-import { ArrowRight, Sparkles, Star } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 
 export function Hero() {
   return (
@@ -47,7 +47,7 @@ export function Hero() {
           href="/claw"
           className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--accent)]/10 border border-[var(--accent)]/30 rounded-full text-[var(--accent)] font-mono text-sm hover:bg-[var(--accent)]/20 transition-all cursor-pointer group"
         >
-          <Star className="w-4 h-4 fill-[var(--accent)]" />
+          <Sparkles className="w-4 h-4" />
           <span>Now in Public Beta</span>
           <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
         </Link>

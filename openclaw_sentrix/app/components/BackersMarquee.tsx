@@ -21,10 +21,10 @@ const backers = [
 
 function BackerItem({ name }: { name: string }) {
   return (
-    <div className="flex-shrink-0 px-8 py-3">
-      <span className="text-gray-400 font-mono text-sm whitespace-nowrap hover:text-[var(--accent)] transition-colors cursor-default">
+    <div className="flex-shrink-0 px-3 py-3">
+      <div className="px-5 py-2.5 bg-white/5 border border-white/10 rounded-lg font-mono text-sm text-gray-400 whitespace-nowrap hover:border-[var(--accent)]/50 hover:text-[var(--accent)] hover:bg-[var(--accent)]/5 transition-all cursor-pointer">
         {name}
-      </span>
+      </div>
     </div>
   );
 }
@@ -35,15 +35,17 @@ export function BackersMarquee() {
 
   return (
     <div className="w-full mt-16">
-      <motion.p
+      <motion.div
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
         viewport={{ once: false }}
         transition={{ duration: 0.5 }}
-        className="text-center font-mono text-xs text-gray-400 uppercase tracking-widest mb-6"
+        className="flex justify-center mb-6"
       >
-        Idea backed by
-      </motion.p>
+        <div className="inline-block px-3 py-1 bg-[var(--accent)]/10 border border-[var(--accent)]/30 text-[var(--accent)] font-mono text-sm rounded-md">
+          Idea backed by
+        </div>
+      </motion.div>
 
       <div className="relative overflow-hidden">
         {/* Gradient masks for smooth fade */}
