@@ -196,8 +196,11 @@ async def create_sandbox(config: SentrixConfig) -> Sandbox:
 
     The image entrypoint starts execd on port 44772 first, so the SDK health check
     and commands.run() (sync, channel login, etc.) work.
+    
+    Uses direct Docker-mapped endpoint (use_server_proxy=False) to avoid
+    opensandbox-server proxy reliability issues (OpenSandbox #383).
     """
-    conn = ConnectionConfig(use_server_proxy=True)
+    conn = ConnectionConfig(use_server_proxy=False)
     sandbox = await Sandbox.create(
         config.image,
         entrypoint=["/opt/sentrix/entrypoint.sh"],
@@ -436,8 +439,13 @@ def read_sandbox_id(log_dir: Path) -> str | None:
 
 
 async def connect_sandbox(sandbox_id: str) -> Sandbox:
-    """Reconnect to an existing sandbox by ID (e.g. for sentrix chat)."""
-    conn = ConnectionConfig(use_server_proxy=True)
+    """Reconnect to an existing sandbox by ID (e.g. for sentrix chat).
+    
+    Uses direct Docker-mapped endpoint (use_server_proxy=False) to avoid
+    opensandbox-server proxy issues (OpenSandbox #383). The server proxy
+    doesn't reliably handle execd health checks, causing 502 errors.
+    """
+    conn = ConnectionConfig(use_server_proxy=False)
     return await Sandbox.connect(
         sandbox_id,
         connection_config=conn,
