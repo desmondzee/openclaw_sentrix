@@ -33,6 +33,16 @@ export function SnapController() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // Force scroll to top on initial load (before snap initializes)
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash === "") {
+      window.scrollTo(0, 0);
+      if (lenis) {
+        lenis.scrollTo(0, { immediate: true });
+      }
+    }
+  }, [lenis]);
+
   useEffect(() => {
     if (!lenis || isMobile) return;
 

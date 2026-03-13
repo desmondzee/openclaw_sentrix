@@ -13,13 +13,6 @@ import { CaptureSequence } from "./components/CaptureSequence";
 import { GTCBanner } from "./components/GTCBanner";
 
 export default function Home() {
-  // Force scroll to top on initial load
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.location.hash === "") {
-      window.scrollTo({ top: 0, behavior: "instant" });
-    }
-  }, []);
-
   return (
     <div className="min-h-screen flex flex-col bg-[var(--background)]">
       <GTCBanner />
