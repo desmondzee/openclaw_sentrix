@@ -470,6 +470,7 @@ def _install_suppress_filter() -> None:
 # Origins allowed for WebSocket connections (no trailing slashes; browsers do not send them).
 DEFAULT_ORIGINS = frozenset({
     "https://openclaw-sentrix.vercel.app",
+    "https://www.sentrixai.xyz",
     "http://localhost:3000",
     "https://localhost:3000",
 })
