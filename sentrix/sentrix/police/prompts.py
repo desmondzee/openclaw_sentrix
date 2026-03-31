@@ -31,7 +31,7 @@ RULES:
 - confidence must be between 0.0 and 1.0.
 - verdict_summary must be 2–3 sentences only.
 
-OPTIONAL — Request more context: If you need more log files to complete the report, you may include "request_more_context" in your JSON:
+OPTIONAL — Request more context: If you need more log files to complete the report, you may include "request_more_context" in your JSON (log files are at 10 minute intervals):
 - "request_more_context": {"direction": "back", "n": <integer>} — request up to n log files earlier (before the current set).
 - "request_more_context": {"direction": "forward", "n": <integer>} — request up to n log files later (after the current set).
 - Omit "request_more_context" (or set to null) when you have enough context to write the report.
